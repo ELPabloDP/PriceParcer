@@ -602,7 +602,11 @@ async def show_generation_phones(callback: CallbackQuery, state: FSMContext):
                 
                 for phone in memory_phones:
                     config = phone.get('configuration', '')
-                    message_text += f"  {phone['country']} {config} — <b>{phone['display_price']:,}₽</b>\n"
+                    # Формируем название iPhone с вариантом
+                    iphone_name = f"iPhone {generation}"
+                    if variant_name != 'обычный':
+                        iphone_name += f" {variant_name}"
+                    message_text += f"   {iphone_name} {config} — <b>{phone['display_price']:,}₽</b>{phone['country']}\n"
                 message_text += "\n"  # Пустая строка между группами памяти
             
             message_text += "\n"  # Пустая строка между вариантами
