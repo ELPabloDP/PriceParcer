@@ -46,7 +46,7 @@ class HybridParser:
             'ipad': {
                 'parser': ipad_parser,
                 'service': ipad_service_simple,
-                'keywords': ['ipad', 'mini', 'air', 'pro', 'wifi', 'lte'],
+                'keywords': ['ipad', 'mini', 'air', 'pro', 'wifi', 'lte', 'wi-fi'],
                 'priority': 3
             },
             'apple_watch': {
@@ -260,7 +260,18 @@ class HybridParser:
             line_lower = line.lower()
             
             # Проверяем наличие ключевых слов
-            if any(keyword in line_lower for keyword in keywords):
+            has_keyword = any(keyword in line_lower for keyword in keywords)
+            
+            # Для строк с флагами, проверяем наличие устройства более строго
+            if self._has_flag(line) and device_type:
+                if device_type == 'ipad' and 'ipad' in line_lower:
+                    has_keyword = True
+                elif device_type == 'iphone' and ('iphone' in line_lower or any(k in line_lower for k in ['13', '14', '15', '16', 'pro', 'plus', 'max'])):
+                    has_keyword = True
+                elif device_type == 'macbook' and 'macbook' in line_lower:
+                    has_keyword = True
+            
+            if has_keyword:
                 # Дополнительные проверки для качества
                 if (self._has_price(line) and 
                     not self._is_exclude_line(line)):
