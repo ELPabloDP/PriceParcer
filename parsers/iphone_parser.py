@@ -55,6 +55,12 @@ class IPhoneParser:
                 'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
                 'variant': 'from_match'
             },
+            # Формат: 16 Pro 128 Black 87300🇯🇵 (с пробелом, флаг в конце)
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)(?:[A-Za-z0-9]*)?',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
+                'variant': 'from_match'
+            },
             # Формат: 16 Plus 128 Teal 🇮🇳 60200
             {
                 'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
