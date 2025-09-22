@@ -44,6 +44,8 @@ class iPadParser:
     def __init__(self):
         # Паттерны для разных типов iPad
         self.patterns = [
+            # iPad mini 7 512LTE Blue🇭🇰 — 86100 (без пробела перед LTE)
+            r'iPad\s+(mini|air|pro)?\s*(\d+)\s*(\d{4})?\s+(\d+)(Wi-Fi|LTE|WiFi)\s+(\w+(?:\s+\w+)*)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇹🇷🇦🇷]+)(?:\([^)]*\))?\s*[—–]\s*(\d+)',
             # iPad mini 7 256 Wi-Fi Starlight🇺🇸 — 44400
             r'iPad\s+(mini|air|pro)?\s*(\d+)\s*(\d{4})?\s+(\d+)\s+(Wi-Fi|LTE|WiFi)\s+(\w+(?:\s+\w+)*)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇹🇷🇦🇷]+)(?:\([^)]*\))?\s*[—–]\s*(\d+)',
             # iPad 11 2025 128 Wi-Fi Blue🇺🇸 — 31000
@@ -153,7 +155,7 @@ class iPadParser:
         
         # Анализируем группы в зависимости от индекса паттерна
         if pattern_index == 0:
-            # iPad mini 7 256 Wi-Fi Starlight🇺🇸 — 44400
+            # iPad mini 7 512LTE Blue🇭🇰 — 86100 (без пробела перед LTE)
             # Группы: (variant, generation, year?, storage, connectivity, color, country, price)
             variant = groups[0] if groups[0] else ""
             generation = groups[1]
@@ -170,6 +172,23 @@ class iPadParser:
                 generation = f"{variant.title()} {generation}"
                 
         elif pattern_index == 1:
+            # iPad mini 7 256 Wi-Fi Starlight🇺🇸 — 44400
+            # Группы: (variant, generation, year?, storage, connectivity, color, country, price)
+            variant = groups[0] if groups[0] else ""
+            generation = groups[1]
+            year = groups[2] if groups[2] else ""
+            storage = groups[3]
+            if not storage.endswith('GB'):
+                storage = f"{storage}GB"
+            connectivity = self.connectivity_map.get(groups[4], groups[4])
+            color = self._normalize_color(groups[5])
+            country = groups[6]
+            price = self._parse_price(groups[7])
+            size = generation
+            if variant:
+                generation = f"{variant.title()} {generation}"
+                
+        elif pattern_index == 2:
             # iPad 11 2025 128 Wi-Fi Blue🇺🇸 — 31000
             # Группы: (generation, year, storage, connectivity, color, country, price)
             generation = groups[0]
@@ -185,7 +204,7 @@ class iPadParser:
             size = generation
             generation = f"{generation} ({year})"
             
-        elif pattern_index == 2:
+        elif pattern_index == 3:
             # 🇺🇸 iPad 10 256GB Blue Wi-Fi — 32.000₽
             # Группы: (country, generation, storage, color, connectivity, price)
             country = groups[0]
@@ -197,7 +216,7 @@ class iPadParser:
             variant = ""
             size = generation
             
-        elif pattern_index == 3:
+        elif pattern_index == 4:
             # 🇺🇸 iPad Air 11 M3 128GB Blue Wi-Fi — 43.600₽
             # Группы: (country, variant, size, chip, storage, color, connectivity, price)
             if len(groups) >= 8:
