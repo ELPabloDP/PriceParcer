@@ -229,11 +229,37 @@ class iPadParser:
     def _parse_price(self, price_str: str) -> int:
         """Парсит цену"""
         try:
-            # Убираем все кроме цифр и точек
+            # Убираем все кроме цифр, точек и запятых
             price_clean = re.sub(r'[^\d.,]', '', price_str)
-            # Заменяем запятую на точку
-            price_clean = price_clean.replace(',', '.')
-            return int(float(price_clean))
+            
+            # В российских прайсах:
+            # 32.000 = 32000 (точка как разделитель тысяч)
+            # 32,5 = 32.5 (запятая как десятичная точка)
+            
+            # Если есть и точка и запятая, то точка - разделитель тысяч
+            if '.' in price_clean and ',' in price_clean:
+                # Убираем точки (разделители тысяч), запятую заменяем на точку
+                price_clean = price_clean.replace('.', '').replace(',', '.')
+                return int(float(price_clean))
+            
+            # Если только точка и цифр больше 3 после точки, то это разделитель тысяч
+            elif '.' in price_clean:
+                parts = price_clean.split('.')
+                if len(parts) == 2 and len(parts[1]) == 3:
+                    # Это разделитель тысяч: 32.000 -> 32000
+                    return int(price_clean.replace('.', ''))
+                else:
+                    # Это десятичная точка: 32.5 -> 32
+                    return int(float(price_clean))
+            
+            # Если только запятая, то это десятичная точка
+            elif ',' in price_clean:
+                return int(float(price_clean.replace(',', '.')))
+            
+            # Если только цифры
+            else:
+                return int(price_clean)
+                
         except:
             return 0
 
