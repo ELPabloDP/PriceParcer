@@ -50,6 +50,27 @@ ssh $SERVER_USER@$SERVER_HOST << EOF
     # Устанавливаем Python пакеты
     pip install -r requirements.txt
     
+    # Создаем .env файл если его нет
+    if [ ! -f .env ]; then
+        echo "Создаем .env файл..."
+        cat > .env << 'ENVEOF'
+# Telegram Bot Token
+BOT_TOKEN=8255931872:AAHzVoCIqd38Kl-4Ru5q9DExTBZkychnIJE
+
+# Yandex GPT API - ЗАМЕНИТЕ НА ВАШИ ДАННЫЕ
+YANDEX_GPT_API_KEY=your_yandex_gpt_api_key_here
+YANDEX_FOLDER_ID=your_yandex_folder_id_here
+
+# Django
+SECRET_KEY=django-insecure-your-secret-key-here
+DEBUG=False
+
+# Database
+DATABASE_URL=sqlite:///db.sqlite3
+ENVEOF
+        echo "⚠️  ВАЖНО: Отредактируйте файл .env и укажите ваши API ключи!"
+    fi
+    
     # Останавливаем существующий бот если он запущен
     echo "🛑 Останавливаем существующий бот..."
     screen -S $SCREEN_NAME -X quit 2>/dev/null || echo "Бот не был запущен"
