@@ -112,6 +112,9 @@ class MacBookParser:
             
             # Универсальный паттерн для MacBook с флагом страны
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
+            
+            # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
+            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+GB?)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
         ]
         
         # Цвета MacBook
@@ -136,14 +139,15 @@ class MacBookParser:
         # Проверяем наличие цены (4-6 цифр)
         has_price = bool(re.search(r'\d{4,6}', line))
         
-        # Проверяем наличие конфигурации (GB/TB)
+        # Проверяем наличие конфигурации (GB/TB) или новый формат с флагом
         has_config = 'gb' in line_lower or 'tb' in line_lower
+        has_flag_format = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]\s+[A-Z0-9]+\s*-\s*\d+/\d+', line))
         
         # Исключаем ненужные строки
         exclude_keywords = ['гарантия', 'активаций', 'adapter', 'от 10 шт', 'mouse', 'trackpad', 'pencil']
         has_exclude = any(keyword in line_lower for keyword in exclude_keywords)
         
-        return has_macbook and has_price and has_config and not has_exclude
+        return (has_macbook or has_flag_format) and has_price and (has_config or has_flag_format) and not has_exclude
 
     def _extract_country(self, line: str) -> str:
         """Извлекает страну из строки"""
@@ -165,20 +169,52 @@ class MacBookParser:
             return storage.upper()
         else:
             return f"{storage}GB"
+    
+    def _extract_context_from_previous_lines(self, lines: List[str], current_index: int) -> Dict[str, str]:
+        """Извлекает контекст из предыдущих строк для определения модели, чипа и размера"""
+        context = {'model': 'Air', 'chip': 'M1', 'size': '13'}
+        
+        # Ищем в предыдущих 5 строках
+        start_index = max(0, current_index - 5)
+        for i in range(start_index, current_index):
+            if i < len(lines):
+                line = lines[i].strip()
+                line_lower = line.lower()
+                
+                # Ищем модель
+                if 'macbook air' in line_lower:
+                    context['model'] = 'Air'
+                    # Ищем размер
+                    size_match = re.search(r'air\s+(\d+)', line_lower)
+                    if size_match:
+                        context['size'] = size_match.group(1)
+                elif 'macbook pro' in line_lower:
+                    context['model'] = 'Pro'
+                    # Ищем размер
+                    size_match = re.search(r'pro\s+(\d+)', line_lower)
+                    if size_match:
+                        context['size'] = size_match.group(1)
+                
+                # Ищем чип
+                chip_match = re.search(r'm(\d+)', line_lower)
+                if chip_match:
+                    context['chip'] = f"M{chip_match.group(1)}"
+        
+        return context
 
     def parse_lines(self, lines: List[str]) -> Tuple[List[MacBookPrice], List[str]]:
         """Парсит строки с MacBook"""
         parsed_prices = []
         unparsed_lines = []
         
-        for line in lines:
+        for i, line in enumerate(lines):
             line = line.strip()
             if not line or not self._is_macbook_line(line):
                 unparsed_lines.append(line)
                 continue
                 
             try:
-                price = self._parse_single_line(line)
+                price = self._parse_single_line(line, lines, i)
                 if price:
                     parsed_prices.append(price)
                 else:
@@ -189,7 +225,7 @@ class MacBookParser:
         
         return parsed_prices, unparsed_lines
 
-    def _parse_single_line(self, line: str) -> MacBookPrice:
+    def _parse_single_line(self, line: str, lines: List[str] = None, current_index: int = 0) -> MacBookPrice:
         """Парсит одну строку MacBook"""
         for i, pattern in enumerate(self.patterns):
             match = re.search(pattern, line, re.IGNORECASE)
@@ -338,6 +374,22 @@ class MacBookParser:
                         delivery = ''
                         if not country:
                             country = self._extract_country(line)
+                    
+                    elif i == 24:  # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
+                        country, product_code, memory, storage, color, price = groups
+                        # Извлекаем контекст из предыдущих строк
+                        if lines and current_index is not None:
+                            context = self._extract_context_from_previous_lines(lines, current_index)
+                            model = context['model']
+                            chip = context['chip']
+                            size = context['size']
+                        else:
+                            model = 'Air'
+                            chip = 'M1'
+                            size = '13'
+                        delivery = ''
+                        # Нормализуем цену (убираем точки и запятые)
+                        price = price.replace('.', '').replace(',', '')
                     
                     else:
                         continue
