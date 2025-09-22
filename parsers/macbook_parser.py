@@ -114,7 +114,7 @@ class MacBookParser:
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
             
             # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
-            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+GB?)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
+            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
         ]
         
         # Цвета MacBook
@@ -134,20 +134,25 @@ class MacBookParser:
         line_lower = line.lower()
         
         # Проверяем наличие MacBook или чипов
-        has_macbook = 'macbook' in line_lower or re.search(r'm[1-4]', line_lower)
+        has_macbook = 'macbook' in line_lower or bool(re.search(r'm[1-4]', line_lower))
         
-        # Проверяем наличие цены (4-6 цифр)
-        has_price = bool(re.search(r'\d{4,6}', line))
+        # Проверяем наличие цены (4-6 цифр или с точками/запятыми)
+        has_price = bool(re.search(r'\d{4,6}|\d+[.,]\d+', line))
         
         # Проверяем наличие конфигурации (GB/TB) или новый формат с флагом
         has_config = 'gb' in line_lower or 'tb' in line_lower
-        has_flag_format = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]\s+[A-Z0-9]+\s*-\s*\d+/\d+', line))
+        has_flag_format = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+\s+[A-Z0-9]+\s*-\s*\d+/\d+', line))
         
         # Исключаем ненужные строки
         exclude_keywords = ['гарантия', 'активаций', 'adapter', 'от 10 шт', 'mouse', 'trackpad', 'pencil']
         has_exclude = any(keyword in line_lower for keyword in exclude_keywords)
         
-        return (has_macbook or has_flag_format) and has_price and (has_config or has_flag_format) and not has_exclude
+        # Для нового формата достаточно флага + кода + конфигурации + цены
+        if has_flag_format and has_price and not has_exclude:
+            return True
+        
+        # Для обычного формата нужен MacBook + конфигурация + цена
+        return has_macbook and has_price and has_config and not has_exclude
 
     def _extract_country(self, line: str) -> str:
         """Извлекает страну из строки"""
