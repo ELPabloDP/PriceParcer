@@ -228,7 +228,7 @@ async def show_catalog(message_or_callback, state: FSMContext):
     try:
         global catalog_data, current_catalog_message
 
-        # Получаем данные каталога
+        # ПРИНУДИТЕЛЬНО получаем свежие данные каталога (без кеша)
         catalog_data = await catalog_service.get_catalog_data()
 
         if not catalog_data:
@@ -252,6 +252,8 @@ async def show_catalog(message_or_callback, state: FSMContext):
                     callback_data=f"brand_{brand_name}"
                 )])
 
+        # Добавляем кнопку очистки старых данных
+        keyboard_buttons.append([InlineKeyboardButton(text="🗑️ Очистить старые iPhone", callback_data="clear_old_iphones")])
         keyboard_buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")])
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -972,6 +974,38 @@ async def clear_database(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка очистки БД: {e}")
         await callback.answer("❌ Ошибка очистки базы данных")
+
+@router.callback_query(F.data == "clear_old_iphones")
+async def clear_old_iphones(callback: CallbackQuery, state: FSMContext):
+    """Очищает старые данные iPhone (13, 14, 15)"""
+    try:
+        from db_app.models import IPhone
+        
+        # Удаляем iPhone 13, 14, 15 (оставляем только 16)
+        deleted_count = 0
+        for gen in ['13', '14', '15']:
+            count = IPhone.objects.filter(generation=gen).count()
+            IPhone.objects.filter(generation=gen).delete()
+            deleted_count += count
+        
+        # Также удаляем неправильные форматы
+        wrong_formats = IPhone.objects.filter(generation__in=['16PLUS', '16PRO', '16PROMAX'])
+        wrong_count = wrong_formats.count()
+        wrong_formats.delete()
+        deleted_count += wrong_count
+        
+        await callback.answer(f"✅ Удалено {deleted_count} старых записей iPhone")
+        
+        # Обновляем каталог
+        global catalog_data
+        catalog_data = await catalog_service.get_catalog_data()
+        
+        # Показываем обновленный каталог
+        await show_catalog(callback, state)
+        
+    except Exception as e:
+        logger.error(f"Ошибка очистки старых iPhone: {e}")
+        await callback.answer("❌ Ошибка очистки данных")
 
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
