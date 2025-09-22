@@ -13,8 +13,15 @@ SCREEN_NAME="price_parser_bot"
 echo "🔄 Перезапускаем бота на сервере $SERVER_HOST..."
 
 ssh $SERVER_USER@$SERVER_HOST << EOF
-    echo "🛑 Останавливаем существующий бот..."
-    screen -S $SCREEN_NAME -X quit 2>/dev/null || echo "Бот не был запущен"
+    echo "🛑 Останавливаем все процессы бота..."
+    # Убиваем screen сессию
+    screen -S $SCREEN_NAME -X quit 2>/dev/null || echo "Screen не был запущен"
+    
+    # Убиваем все процессы python bot/main.py принудительно
+    pkill -f "python bot/main.py" 2>/dev/null || echo "Процессы не найдены"
+    
+    # Ждем 2 секунды для завершения процессов
+    sleep 2
     
     echo "🤖 Запускаем бота заново..."
     screen -dmS $SCREEN_NAME bash -c "cd /root/PriceParcer && source venv/bin/activate && python bot/main.py"
