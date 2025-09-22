@@ -1,0 +1,55 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        script: |
+          # Обновляем систему
+          apt update
+          
+          # Устанавливаем необходимые пакеты
+          apt install -y git python3 python3-pip python3-venv screen
+          
+          # Создаем директорию проекта
+          mkdir -p /root/PriceParcer
+          cd /root/PriceParcer
+          
+          # Клонируем или обновляем репозиторий
+          if [ -d ".git" ]; then
+            echo "Обновляем существующий репозиторий..."
+            git pull origin main
+          else
+            echo "Клонируем репозиторий..."
+            git clone https://github.com/ELPabloDP/PriceParcer.git .
+          fi
+          
+          # Создаем виртуальное окружение
+          python3 -m venv venv
+          source venv/bin/activate
+          
+          # Устанавливаем зависимости
+          pip install -r requirements.txt
+          
+          # Останавливаем существующий бот
+          screen -S price_parser_bot -X quit 2>/dev/null || echo "Бот не был запущен"
+          
+          # Запускаем бота в новом screen
+          screen -dmS price_parser_bot bash -c "cd /root/PriceParcer && source venv/bin/activate && python bot/main.py"
+          
+          echo "✅ Деплой завершен! Бот запущен в screen 'price_parser_bot'"
