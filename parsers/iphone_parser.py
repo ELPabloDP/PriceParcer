@@ -37,11 +37,23 @@ class IPhoneParser:
                 'groups': ['country', 'generation', 'storage', 'color', 'price'],
                 'variant': ''
             },
+            # Формат: 13 128 Midnight - 38000🇮🇳
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s*-\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
             # Формат: 16 128 White 🇮🇳 58900
             {
                 'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
                 'groups': ['generation', 'storage', 'color', 'country', 'price'],
                 'variant': ''
+            },
+            # Формат: 15Pro 128 Blue - 78500🇦🇪
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s*-\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
+                'variant': 'from_match'
             },
             # Формат: 16 Plus 128 Teal 🇮🇳 60200
             {
