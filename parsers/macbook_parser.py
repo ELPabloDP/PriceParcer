@@ -110,11 +110,11 @@ class MacBookParser:
             # MacBook MC6K4 Air 15 Starlight (M4, 24GB, 512GB) 2025 🇺🇸 125000 (с пробелом перед флагом)
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)([🚚🚛🚘]?)',
             
-            # Универсальный паттерн для MacBook с флагом страны
-            r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
-            
             # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
             r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
+            
+            # Универсальный паттерн для MacBook с флагом страны
+            r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇤🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
         ]
         
         # Цвета MacBook
@@ -149,10 +149,14 @@ class MacBookParser:
         
         # Для нового формата достаточно флага + кода + конфигурации + цены
         if has_flag_format and has_price and not has_exclude:
+            logger.info(f"MacBook строка распознана (новый формат): {line}")
             return True
         
         # Для обычного формата нужен MacBook + конфигурация + цена
-        return has_macbook and has_price and has_config and not has_exclude
+        result = has_macbook and has_price and has_config and not has_exclude
+        if result:
+            logger.info(f"MacBook строка распознана (обычный формат): {line}")
+        return result
 
     def _extract_country(self, line: str) -> str:
         """Извлекает страну из строки"""
@@ -236,6 +240,7 @@ class MacBookParser:
             match = re.search(pattern, line, re.IGNORECASE)
             if match:
                 groups = match.groups()
+                logger.info(f"MacBook паттерн {i} сработал для строки: {line}, групп: {len(groups)}")
                 
                 try:
                     if i == 0:  # MacBook MGN63 Air 13 Space Gray (M1,8GB,256GB)2020 RU/A 51000 🚚
@@ -373,14 +378,7 @@ class MacBookParser:
                         if not country:
                             country = self._extract_country(line)
                             
-                    elif i == 23:  # Универсальный паттерн для MacBook с флагом страны
-                        product_code, size, color, chip, memory, storage, year, country, price = groups
-                        model = 'Air'
-                        delivery = ''
-                        if not country:
-                            country = self._extract_country(line)
-                    
-                    elif i == 24:  # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
+                    elif i == 23:  # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
                         country, product_code, memory, storage, color, price = groups
                         # Извлекаем контекст из предыдущих строк
                         if lines and current_index is not None:
@@ -395,6 +393,16 @@ class MacBookParser:
                         delivery = ''
                         # Нормализуем цену (убираем точки и запятые)
                         price = price.replace('.', '').replace(',', '')
+                        # Добавляем GB к storage если его нет
+                        if not storage.endswith('GB'):
+                            storage = f"{storage}GB"
+                    
+                    elif i == 24:  # Универсальный паттерн для MacBook с флагом страны
+                        product_code, size, color, chip, memory, storage, year, country, price = groups
+                        model = 'Air'
+                        delivery = ''
+                        if not country:
+                            country = self._extract_country(line)
                     
                     else:
                         continue
@@ -419,6 +427,7 @@ class MacBookParser:
                     
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Ошибка парсинга MacBook группы {i}: {e} - {line}")
+                    logger.warning(f"Группы: {groups}")
                     continue
         
         return None
