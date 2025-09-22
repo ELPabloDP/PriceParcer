@@ -44,6 +44,9 @@ class MacBookParser:
     
     def __init__(self):
         self.patterns = [
+            # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽ (проверяем первым!)
+            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
+            
             # MacBook MGN63 Air 13 Space Gray (M1,8GB,256GB)2020 RU/A 51000 🚚
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),(\d+)GB,(\d+GB)\)(\d+)\s+([A-Z/]+)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]?)\s*([🚚🚛🚘]?)',
             
@@ -109,9 +112,6 @@ class MacBookParser:
             
             # MacBook MC6K4 Air 15 Starlight (M4, 24GB, 512GB) 2025 🇺🇸 125000 (с пробелом перед флагом)
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)([🚚🚛🚘]?)',
-            
-            # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
-            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
             
             # Универсальный паттерн для MacBook с флагом страны
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇤🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
@@ -243,13 +243,32 @@ class MacBookParser:
                 logger.info(f"MacBook паттерн {i} сработал для строки: {line}, групп: {len(groups)}")
                 
                 try:
-                    if i == 0:  # MacBook MGN63 Air 13 Space Gray (M1,8GB,256GB)2020 RU/A 51000 🚚
+                    if i == 0:  # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽
+                        country, product_code, memory, storage, color, price = groups
+                        # Извлекаем контекст из предыдущих строк
+                        if lines and current_index is not None:
+                            context = self._extract_context_from_previous_lines(lines, current_index)
+                            model = context['model']
+                            chip = context['chip']
+                            size = context['size']
+                        else:
+                            model = 'Air'
+                            chip = 'M1'
+                            size = '13'
+                        delivery = ''
+                        # Нормализуем цену (убираем точки и запятые)
+                        price = price.replace('.', '').replace(',', '')
+                        # Добавляем GB к storage если его нет
+                        if not storage.endswith('GB'):
+                            storage = f"{storage}GB"
+                            
+                    elif i == 1:  # MacBook MGN63 Air 13 Space Gray (M1,8GB,256GB)2020 RU/A 51000 🚚
                         product_code, size, color, chip, memory, storage, year, region, price, country, delivery = groups
                         model = 'Air'
                         if not country:
                             country = self._extract_country(line)
                         
-                    elif i == 1:  # MacBook MC7X4 Air 13 Midnight (M2,16GB,256GB) 2024 64000 🚚
+                    elif i == 2:  # MacBook MC7X4 Air 13 Midnight (M2,16GB,256GB) 2024 64000 🚚
                         product_code, size, color, chip, memory, storage, year, price, country, delivery = groups
                         model = 'Air'
                         if not country:
