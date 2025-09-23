@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'db_app.settings')
 django.setup()
 
-from db_app.models import IPhone, Product, Markup, MacBook, iPad, AppleWatch
+from db_app.models import IPhone, Product, Markup, MacBook, iPad, AppleWatch, iMac, AirPods
 from services.macbook_service_simple import macbook_service_simple
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,20 @@ class CatalogService:
                 if 'Apple' not in catalog:
                     catalog['Apple'] = {}
                 catalog['Apple']['Apple Watch'] = apple_watch_data
+            
+            # iMac каталог
+            imac_data = self._get_imac_catalog()
+            if imac_data:
+                if 'Apple' not in catalog:
+                    catalog['Apple'] = {}
+                catalog['Apple']['iMac'] = imac_data
+            
+            # AirPods каталог
+            airpods_data = self._get_airpods_catalog()
+            if airpods_data:
+                if 'Apple' not in catalog:
+                    catalog['Apple'] = {}
+                catalog['Apple']['AirPods'] = airpods_data
             
             # Другие товары
             other_data = self._get_other_products_catalog()
@@ -280,6 +294,95 @@ class CatalogService:
             return apple_watch_list
         except Exception as e:
             logger.error(f"Ошибка получения каталога Apple Watch: {e}")
+            return {}
+    
+    def _get_imac_catalog(self):
+        """Получает каталог iMac"""
+        try:
+            imacs = iMac.objects.all().order_by('model', 'chip', 'size')
+            
+            imac_list = []
+            for imac in imacs:
+                # Формируем название
+                name_parts = [imac.model]
+                if imac.chip:
+                    name_parts.append(imac.chip)
+                if imac.size and imac.size != 'Mini':
+                    name_parts.append(f"{imac.size}\"")
+                
+                # Формируем конфигурацию
+                config_parts = []
+                if imac.memory:
+                    config_parts.append(imac.memory)
+                if imac.storage:
+                    config_parts.append(imac.storage)
+                if imac.color:
+                    config_parts.append(imac.color)
+                
+                configuration = " ".join(config_parts)
+                
+                imac_list.append({
+                    'id': imac.id,
+                    'name': " ".join(name_parts),
+                    'configuration': configuration,
+                    'price': int(imac.price),
+                    'display_price': imac.display_price,
+                    'country': imac.country,
+                    'product_code': imac.product_code or '',
+                    'model': imac.model or '',
+                    'chip': imac.chip or '',
+                    'size': imac.size or '',
+                    'memory': imac.memory or '',
+                    'storage': imac.storage or '',
+                    'color': imac.color or ''
+                })
+            
+            return imac_list
+        except Exception as e:
+            logger.error(f"Ошибка получения каталога iMac: {e}")
+            return {}
+    
+    def _get_airpods_catalog(self):
+        """Получает каталог AirPods"""
+        try:
+            airpods = AirPods.objects.all().order_by('model', 'generation', 'features')
+            
+            airpods_list = []
+            for ap in airpods:
+                # Формируем название
+                name_parts = [ap.model]
+                if ap.generation and ap.generation != ap.model:
+                    name_parts.append(ap.generation)
+                
+                # Формируем конфигурацию
+                config_parts = []
+                if ap.features:
+                    config_parts.append(ap.features)
+                if ap.color and ap.color != 'White':
+                    config_parts.append(ap.color)
+                if ap.year:
+                    config_parts.append(f"({ap.year})")
+                
+                configuration = " ".join(config_parts)
+                
+                airpods_list.append({
+                    'id': ap.id,
+                    'name': " ".join(name_parts),
+                    'configuration': configuration,
+                    'price': int(ap.price),
+                    'display_price': ap.display_price,
+                    'country': ap.country,
+                    'product_code': ap.product_code or '',
+                    'model': ap.model or '',
+                    'generation': ap.generation or '',
+                    'features': ap.features or '',
+                    'color': ap.color or '',
+                    'year': ap.year or ''
+                })
+            
+            return airpods_list
+        except Exception as e:
+            logger.error(f"Ошибка получения каталога AirPods: {e}")
             return {}
     
     @sync_to_async

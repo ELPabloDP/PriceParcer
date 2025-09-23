@@ -296,6 +296,135 @@ class AppleWatch(models.Model):
         """Красивое отображение размера"""
         return f"{self.size}mm"
 
+class iMac(models.Model):
+    """Модель для iMac и Mac Mini"""
+    
+    # Основные поля
+    model = models.CharField(max_length=20)  # iMac, Mac Mini
+    chip = models.CharField(max_length=20)  # M1, M2, M3, M4
+    size = models.CharField(max_length=20, blank=True, null=True)  # 24, Mini
+    memory = models.CharField(max_length=20)  # 8GB, 16GB, 24GB, 32GB
+    storage = models.CharField(max_length=20)  # 256GB, 512GB, 1TB, 2TB
+    color = models.CharField(max_length=30)  # Blue, Silver, Green, Pink, Yellow, Orange, Purple
+    country = models.CharField(max_length=10)  # 🇺🇸, 🇯🇵, 🇮🇳, etc.
+    
+    # Цена и код продукта
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    product_code = models.CharField(max_length=50, blank=True, null=True)  # MWUF3, MNH73, etc.
+    
+    # Метаданные
+    source = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "iMac"
+        verbose_name_plural = "iMac"
+        # Уникальность по основным полям
+        unique_together = ['model', 'chip', 'size', 'memory', 'storage', 'color', 'country']
+        ordering = ['model', 'chip', 'size', 'memory', 'storage', 'color']
+    
+    def __str__(self):
+        return self.full_name
+    
+    @property
+    def full_name(self):
+        """Полное название iMac"""
+        parts = [self.model]
+        
+        if self.chip:
+            parts.append(self.chip)
+            
+        if self.size and self.size != 'Mini':
+            parts.append(f"{self.size}\"")
+            
+        parts.extend([self.memory, self.storage, self.color])
+        parts.append(self.country)
+            
+        return " ".join(parts)
+    
+    @property
+    def display_price(self):
+        """Цена с наценкой для отображения"""
+        try:
+            markup = Markup.get_current_markup()
+            return int(self.price + markup)
+        except:
+            return int(self.price)
+    
+    @property
+    def model_display(self):
+        """Красивое отображение модели"""
+        return f"{self.model} {self.chip}"
+
+class AirPods(models.Model):
+    """Модель для AirPods"""
+    
+    # Основные поля
+    model = models.CharField(max_length=30)  # AirPods, AirPods Pro, AirPods Max
+    generation = models.CharField(max_length=20)  # 2, 3, 4, Pro, Pro 2, Max
+    features = models.CharField(max_length=30, blank=True, null=True)  # ANC, Lightning, USB-C, NEW
+    color = models.CharField(max_length=30)  # White, Purple, Orange, Blue, Pink, etc.
+    year = models.CharField(max_length=10, blank=True, null=True)  # 2024, 2023, etc.
+    country = models.CharField(max_length=10)  # 🇺🇸, 🇯🇵, 🇮🇳, etc.
+    
+    # Цена и код продукта
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    product_code = models.CharField(max_length=50, blank=True, null=True)  # MPNY3, MTJV3, etc.
+    
+    # Метаданные
+    source = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "AirPods"
+        verbose_name_plural = "AirPods"
+        # Уникальность по основным полям
+        unique_together = ['model', 'generation', 'features', 'color', 'year', 'country']
+        ordering = ['model', 'generation', 'features', 'color']
+    
+    def __str__(self):
+        return self.full_name
+    
+    @property
+    def full_name(self):
+        """Полное название AirPods"""
+        parts = [self.model]
+        
+        if self.generation and self.generation != self.model:
+            parts.append(self.generation)
+            
+        if self.features:
+            parts.append(self.features)
+            
+        if self.color and self.color != 'White':
+            parts.append(self.color)
+            
+        if self.year:
+            parts.append(f"({self.year})")
+        
+        if self.country:
+            parts.append(self.country)
+            
+        return " ".join(parts)
+    
+    @property
+    def display_price(self):
+        """Цена с наценкой для отображения"""
+        try:
+            markup = Markup.get_current_markup()
+            return int(self.price + markup)
+        except:
+            return int(self.price)
+    
+    @property
+    def model_display(self):
+        """Красивое отображение модели"""
+        if self.generation and self.generation != self.model:
+            return f"{self.model} {self.generation}"
+        return self.model
+
 class Product(models.Model):
     """Универсальная модель для всех остальных товаров"""
     name = models.CharField(max_length=200)

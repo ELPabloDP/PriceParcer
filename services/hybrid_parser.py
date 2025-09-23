@@ -13,11 +13,15 @@ sys.path.append(str(Path(__file__).parent.parent))
 from parsers.iphone_parser import iphone_parser
 from parsers.macbook_parser import macbook_parser
 from parsers.ipad_parser import ipad_parser
-from parsers.apple_watch_parser import apple_watch_parser
+from parsers.apple_watch_parser import AppleWatchParser
+from parsers.imac_parser import iMacParser
+from parsers.airpods_parser import AirPodsParser
 from services.iphone_service_simple import iphone_service_simple
 from services.macbook_service_simple import macbook_service_simple
 from services.ipad_service_simple import ipad_service_simple
-from services.apple_watch_service_simple import apple_watch_service_simple
+from services.apple_watch_service import AppleWatchService
+from services.imac_service import iMacService
+from services.airpods_service import AirPodsService
 from services.macbook_service import macbook_service
 
 # Импортируем старую систему GPT для fallback
@@ -30,6 +34,16 @@ class HybridParser:
     """Гибридный парсер: сначала шаблоны, потом GPT"""
     
     def __init__(self):
+        # Инициализируем новые парсеры
+        self.apple_watch_parser = AppleWatchParser()
+        self.imac_parser = iMacParser()
+        self.airpods_parser = AirPodsParser()
+        
+        # Инициализируем новые сервисы
+        self.apple_watch_service = AppleWatchService()
+        self.imac_service = iMacService()
+        self.airpods_service = AirPodsService()
+        
         self.device_parsers = {
             'iphone': {
                 'parser': iphone_parser,
@@ -50,12 +64,23 @@ class HybridParser:
                 'priority': 3
             },
             'apple_watch': {
-                'parser': apple_watch_parser,
-                'service': apple_watch_service_simple,
-                'keywords': ['apple watch', 'aw ', 'watch', 'se', 'ultra', 'series'],
+                'parser': self.apple_watch_parser,
+                'service': self.apple_watch_service,
+                'keywords': ['apple watch', 'aw ', 'watch', 'se', 'ultra', 'series', 's10'],
                 'priority': 4
+            },
+            'imac': {
+                'parser': self.imac_parser,
+                'service': self.imac_service,
+                'keywords': ['imac', 'mac mini', 'mini m2', 'mini m4'],
+                'priority': 5
+            },
+            'airpods': {
+                'parser': self.airpods_parser,
+                'service': self.airpods_service,
+                'keywords': ['airpods', '🎧', 'max', 'pro', 'anc', 'lightning', 'usb-c'],
+                'priority': 6
             }
-            # Здесь будут добавлены AirPods
         }
     
     async def parse_message(self, text: str, source: str = "") -> Dict[str, Any]:
@@ -199,10 +224,14 @@ class HybridParser:
                 macbook_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'macbook' and item.get('firm', '').lower() == 'apple']
                 ipad_items = [item for item in gpt_parsed if item.get('device', '').lower().startswith('ipad') and item.get('firm', '').lower() == 'apple']
                 apple_watch_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple']
+                imac_items = [item for item in gpt_parsed if item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple']
+                airpods_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple']
                 other_items = [item for item in gpt_parsed if not (
                     (item.get('device', '').lower() == 'macbook' and item.get('firm', '').lower() == 'apple') or
                     (item.get('device', '').lower().startswith('ipad') and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple')
+                    (item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple') or
+                    (item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple') or
+                    (item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple')
                 )]
                 
                 gpt_saved = 0
@@ -227,7 +256,23 @@ class HybridParser:
                 if apple_watch_items:
                     logger.info(f"Обрабатываем {len(apple_watch_items)} Apple Watch товаров через специализированный сервис")
                     for item in apple_watch_items:
-                        result = await apple_watch_service_simple.save_apple_watch_price(item)
+                        result = await self.apple_watch_service.save_apple_watch_price(item)
+                        if result:
+                            gpt_saved += 1
+                
+                # Обрабатываем iMac товары через специализированный сервис
+                if imac_items:
+                    logger.info(f"Обрабатываем {len(imac_items)} iMac товаров через специализированный сервис")
+                    for item in imac_items:
+                        result = await self.imac_service.save_imac_price(item)
+                        if result:
+                            gpt_saved += 1
+                
+                # Обрабатываем AirPods товары через специализированный сервис
+                if airpods_items:
+                    logger.info(f"Обрабатываем {len(airpods_items)} AirPods товаров через специализированный сервис")
+                    for item in airpods_items:
+                        result = await self.airpods_service.save_airpods_price(item)
                         if result:
                             gpt_saved += 1
                 
