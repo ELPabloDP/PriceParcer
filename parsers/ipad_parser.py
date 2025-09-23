@@ -77,6 +77,18 @@ class iPadParser:
             
             # iPad 11 256 Yellow WIFI MD4J4 - 36.000 (исправленный паттерн)
             r'ipad\s+(\d+)\s+(\d+gb)\s+(\w+)\s+(wifi|lte)\s+([a-z0-9]+)\s*[-–]\s*([\d.,]+)',
+            
+            # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸.
+            r'ipad\s+mini\s+(\d+)\s+(\d+)\s+(\w+)\s+(wifi|lte)[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
+            
+            # iPad 11 (2025) 128 Blue WiFi -   31500🇺🇸.
+            r'ipad\s+(\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
+            
+            # iPad Air 11 M3 (2025) 128 Gray WiFi -   44500🇺🇸.
+            r'ipad\s+air\s+(\d+)\s+(m\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
+            
+            # iPad Air 13 M2 (2024) 128 Blue WiFi -  54000🇺🇸.
+            r'ipad\s+air\s+(\d+)\s+(m\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
         ]
         
         # Цвета iPad
@@ -263,6 +275,51 @@ class iPadParser:
                     connectivity = self.connectivity_map.get(groups[3], groups[3])
                     product_code = groups[4] if len(groups) > 4 else ""
                     price = self._parse_price(groups[5]) if len(groups) > 5 else 0
+        
+        # Новые паттерны для современных форматов
+        if pattern_index == 12:  # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸.
+            # Группы: (generation, storage, color, connectivity, price, country)
+            generation = f"Mini {groups[0]}"
+            variant = "Mini"
+            size = groups[0]
+            storage = f"{groups[1]}GB"
+            color = self._normalize_color(groups[2])
+            connectivity = self.connectivity_map.get(groups[3], groups[3])
+            price = self._parse_price(groups[4])
+            country = groups[5] if groups[5] else ""
+            
+        elif pattern_index == 13:  # iPad 11 (2025) 128 Blue WiFi -   31500🇺🇸.
+            # Группы: (generation, storage, color, connectivity, price, country)
+            generation = f"{groups[0]} (2025)"
+            variant = ""
+            size = groups[0]
+            storage = f"{groups[1]}GB"
+            color = self._normalize_color(groups[2])
+            connectivity = self.connectivity_map.get(groups[3], groups[3])
+            price = self._parse_price(groups[4])
+            country = groups[5] if len(groups) > 5 and groups[5] else ""
+            
+        elif pattern_index == 14:  # iPad Air 11 M3 (2025) 128 Gray WiFi -   44500🇺🇸.
+            # Группы: (size, chip, storage, color, connectivity, price, country)
+            generation = f"Air {groups[0]} {groups[1]} (2025)"
+            variant = "Air"
+            size = groups[0]
+            storage = f"{groups[2]}GB"
+            color = self._normalize_color(groups[3])
+            connectivity = self.connectivity_map.get(groups[4], groups[4])
+            price = self._parse_price(groups[5])
+            country = groups[6] if len(groups) > 6 and groups[6] else ""
+            
+        elif pattern_index == 15:  # iPad Air 13 M2 (2024) 128 Blue WiFi -  54000🇺🇸.
+            # Группы: (size, chip, storage, color, connectivity, price, country)
+            generation = f"Air {groups[0]} {groups[1]} (2024)"
+            variant = "Air"
+            size = groups[0]
+            storage = f"{groups[2]}GB"
+            color = self._normalize_color(groups[3])
+            connectivity = self.connectivity_map.get(groups[4], groups[4])
+            price = self._parse_price(groups[5])
+            country = groups[6] if len(groups) > 6 and groups[6] else ""
         
         return iPadData(
             generation=generation,
