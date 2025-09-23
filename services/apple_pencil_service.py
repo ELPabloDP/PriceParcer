@@ -11,6 +11,34 @@ logger = logging.getLogger(__name__)
 class ApplePencilService:
     """Сервис для сохранения данных Apple Pencil"""
     
+    async def parse_and_save_prices(self, lines: list, source: str = "") -> tuple[list, int]:
+        """
+        Парсит строки и сохраняет цены
+        Возвращает (parsed_items, saved_count)
+        """
+        from parsers.apple_pencil_parser import ApplePencilParser
+        
+        parser = ApplePencilParser()
+        parsed_items, unparsed = parser.parse_lines(lines)
+        
+        saved_count = 0
+        for item in parsed_items:
+            # Конвертируем в формат для save_apple_pencil_price
+            data = {
+                'device': 'Apple Pencil',
+                'generation': item.generation,
+                'connector': item.connector,
+                'country': item.country_flag,
+                'price': str(item.price),
+                'product_code': item.product_code,
+                'source': source
+            }
+            
+            if await self.save_apple_pencil_price(data):
+                saved_count += 1
+        
+        return parsed_items, saved_count
+    
     @sync_to_async
     def save_apple_pencil_price(self, pencil_data: Dict[str, Any]) -> bool:
         """Сохраняет цену Apple Pencil в базу данных"""

@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'db_app.settings')
 django.setup()
 
-from db_app.models import IPhone, Product, Markup, MacBook, iPad, AppleWatch, iMac, AirPods
+from db_app.models import IPhone, Product, Markup, MacBook, iPad, AppleWatch, iMac, AirPods, ApplePencil
 from services.macbook_service_simple import macbook_service_simple
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,13 @@ class CatalogService:
                 if 'Apple' not in catalog:
                     catalog['Apple'] = {}
                 catalog['Apple']['AirPods'] = airpods_data
+            
+            # Apple Pencil каталог
+            apple_pencil_data = self._get_apple_pencil_catalog()
+            if apple_pencil_data:
+                if 'Apple' not in catalog:
+                    catalog['Apple'] = {}
+                catalog['Apple']['Apple Pencil'] = apple_pencil_data
             
             # Другие товары
             other_data = self._get_other_products_catalog()
@@ -383,6 +390,43 @@ class CatalogService:
             return airpods_list
         except Exception as e:
             logger.error(f"Ошибка получения каталога AirPods: {e}")
+            return {}
+    
+    def _get_apple_pencil_catalog(self):
+        """Получает каталог Apple Pencil"""
+        try:
+            pencils = ApplePencil.objects.all().order_by('generation', 'connector')
+            
+            pencil_list = []
+            for pencil in pencils:
+                # Формируем название
+                name_parts = [pencil.model]
+                if pencil.generation:
+                    name_parts.append(pencil.generation)
+                
+                # Формируем конфигурацию
+                config_parts = []
+                if pencil.connector and pencil.connector != 'Lightning':
+                    config_parts.append(f"({pencil.connector})")
+                
+                configuration = " ".join(config_parts)
+                
+                pencil_list.append({
+                    'id': pencil.id,
+                    'name': " ".join(name_parts),
+                    'configuration': configuration,
+                    'price': int(pencil.price),
+                    'display_price': pencil.display_price,
+                    'country': pencil.country,
+                    'product_code': pencil.product_code or '',
+                    'model': pencil.model or '',
+                    'generation': pencil.generation or '',
+                    'connector': pencil.connector or ''
+                })
+            
+            return pencil_list
+        except Exception as e:
+            logger.error(f"Ошибка получения каталога Apple Pencil: {e}")
             return {}
     
     @sync_to_async

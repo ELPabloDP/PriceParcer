@@ -16,12 +16,14 @@ from parsers.ipad_parser import ipad_parser
 from parsers.apple_watch_parser import AppleWatchParser
 from parsers.imac_parser import iMacParser
 from parsers.airpods_parser import AirPodsParser
+from parsers.apple_pencil_parser import ApplePencilParser
 from services.iphone_service_simple import iphone_service_simple
 from services.macbook_service_simple import macbook_service_simple
 from services.ipad_service_simple import ipad_service_simple
 from services.apple_watch_service import AppleWatchService
 from services.imac_service import iMacService
 from services.airpods_service import AirPodsService
+from services.apple_pencil_service import ApplePencilService
 from services.macbook_service import macbook_service
 
 # Импортируем старую систему GPT для fallback
@@ -38,11 +40,13 @@ class HybridParser:
         self.apple_watch_parser = AppleWatchParser()
         self.imac_parser = iMacParser()
         self.airpods_parser = AirPodsParser()
+        self.apple_pencil_parser = ApplePencilParser()
         
         # Инициализируем новые сервисы
         self.apple_watch_service = AppleWatchService()
         self.imac_service = iMacService()
         self.airpods_service = AirPodsService()
+        self.apple_pencil_service = ApplePencilService()
         
         self.device_parsers = {
             'iphone': {
@@ -80,6 +84,12 @@ class HybridParser:
                 'service': self.airpods_service,
                 'keywords': ['airpods', '🎧', 'max', 'pro', 'anc', 'lightning', 'usb-c'],
                 'priority': 6
+            },
+            'apple_pencil': {
+                'parser': self.apple_pencil_parser,
+                'service': self.apple_pencil_service,
+                'keywords': ['pencil', '✒️', 'apple pencil'],
+                'priority': 7
             }
         }
     
@@ -141,15 +151,24 @@ class HybridParser:
                                 source_lines.append(data.get('source_line', ''))
                             else:
                                 source_lines.append(getattr(data, 'source_line', ''))
-                        save_result = await parser_info['service'].parse_and_save_prices(
+                        parse_result = await parser_info['service'].parse_and_save_prices(
                             '\n'.join(source_lines), 
                             source
                         )
                         # Приводим к единому формату
-                        if 'total_saved' not in save_result:
-                            save_result['total_saved'] = save_result.get('saved', 0)
-                        if 'template_saved' not in save_result:
-                            save_result['template_saved'] = save_result.get('saved', 0)
+                        if isinstance(parse_result, tuple):
+                            parsed_items, saved_count = parse_result
+                            save_result = {
+                                'total_saved': saved_count,
+                                'template_saved': saved_count,
+                                'parsed_items': parsed_items
+                            }
+                        else:
+                            save_result = parse_result
+                            if 'total_saved' not in save_result:
+                                save_result['total_saved'] = save_result.get('saved', 0)
+                            if 'template_saved' not in save_result:
+                                save_result['template_saved'] = save_result.get('saved', 0)
                     
                     results['template_results'][device_type] = save_result
                     results['total_saved'] += save_result['total_saved']
@@ -188,7 +207,7 @@ class HybridParser:
                                     gpt_saved += 1
                         elif device_type == 'apple_watch':
                             for item in gpt_parsed:
-                                result = await apple_watch_service_simple.save_apple_watch_price(item)
+                                result = await self.apple_watch_service.save_apple_watch_price(item)
                                 if result:
                                     gpt_saved += 1
                         else:
@@ -226,12 +245,14 @@ class HybridParser:
                 apple_watch_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple']
                 imac_items = [item for item in gpt_parsed if item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple']
                 airpods_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple']
+                apple_pencil_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'apple pencil' and item.get('firm', '').lower() == 'apple']
                 other_items = [item for item in gpt_parsed if not (
                     (item.get('device', '').lower() == 'macbook' and item.get('firm', '').lower() == 'apple') or
                     (item.get('device', '').lower().startswith('ipad') and item.get('firm', '').lower() == 'apple') or
                     (item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple') or
                     (item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple')
+                    (item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple') or
+                    (item.get('device', '').lower() == 'apple pencil' and item.get('firm', '').lower() == 'apple')
                 )]
                 
                 gpt_saved = 0
@@ -273,6 +294,14 @@ class HybridParser:
                     logger.info(f"Обрабатываем {len(airpods_items)} AirPods товаров через специализированный сервис")
                     for item in airpods_items:
                         result = await self.airpods_service.save_airpods_price(item)
+                        if result:
+                            gpt_saved += 1
+                
+                # Обрабатываем Apple Pencil товары через специализированный сервис
+                if apple_pencil_items:
+                    logger.info(f"Обрабатываем {len(apple_pencil_items)} Apple Pencil товаров через специализированный сервис")
+                    for item in apple_pencil_items:
+                        result = await self.apple_pencil_service.save_apple_pencil_price(item)
                         if result:
                             gpt_saved += 1
                 
