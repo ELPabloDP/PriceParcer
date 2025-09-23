@@ -47,6 +47,15 @@ class MacBookParser:
             # Новый формат: 🇺🇸 MGND3 - 8/256 Gold — 62.000₽ (проверяем первым!)
             r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+([A-Z0-9]+)\s*-\s*(\d+)/(\d+)\s+(\w+)\s*—\s*(\d+[.,]\d+|\d+)\s*₽?',
             
+            # Короткий формат: MW0Y3 13" M4 10/8 16 256GB Starlight - 80.000
+            r'([A-Z0-9]+)\s+(\d+)"\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+)\s+(\d+(?:GB|TB|Gb|Tb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
+            
+            # С флагом впереди: 🇺🇸MW0X3 13" M4 10/10 16 512GB Silver - 99.000
+            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)([A-Z0-9]+)\s+(\d+)"\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+)\s+(\d+(?:GB|TB|Gb|Tb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
+            
+            # С эмодзи: 💻Z1GS000NK MacBook Air 13 M4 10/10 24Gb 1Tb Silver - 185.000
+            r'💻([A-Z0-9]+)\s+MacBook\s+Air\s+(\d+)\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+(?:GB|Gb))\s+(\d+(?:TB|Tb|GB|Gb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
+            
             # MacBook MGN63 Air 13 Space Gray (M1,8GB,256GB)2020 RU/A 51000 🚚
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),(\d+)GB,(\d+GB)\)(\d+)\s+([A-Z/]+)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]?)\s*([🚚🚛🚘]?)',
             
@@ -115,6 +124,16 @@ class MacBookParser:
             
             # Универсальный паттерн для MacBook с флагом страны
             r'MacBook\s+([A-Z0-9]+)\s+Air\s+(\d+)\s+([^\(]+)\s*\(M(\d+),\s*(\d+)GB,\s*(\d+GB)\)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇤🇷🇪🇺🇷🇺🇨🇦🇻🇳])\s+(\d+)',
+            
+            # ========= НОВЫЕ ПАТТЕРНЫ =========
+            # Короткий формат: MW0Y3 13" M4 10/8 16 256GB Starlight - 80.000
+            r'([A-Z0-9]+)\s+(\d+)"\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+)\s+(\d+(?:GB|TB|Gb|Tb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
+            
+            # С флагом впереди: 🇺🇸MW0X3 13" M4 10/10 16 512GB Silver - 99.000
+            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇤🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)([A-Z0-9]+)\s+(\d+)"\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+)\s+(\d+(?:GB|TB|Gb|Tb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
+            
+            # С эмодзи: 💻Z1GS000NK MacBook Air 13 M4 10/10 24Gb 1Tb Silver - 185.000
+            r'💻([A-Z0-9]+)\s+MacBook\s+Air\s+(\d+)\s+M(\d+)\s+(\d+)/(\d+)\s+(\d+(?:GB|Gb))\s+(\d+(?:TB|Tb|GB|Gb))\s+(\w+)\s*-\s*(\d+[.,]\d+|\d+)',
         ]
         
         # Цвета MacBook
@@ -268,13 +287,13 @@ class MacBookParser:
                         if not country:
                             country = self._extract_country(line)
                         
-                    elif i == 2:  # MacBook MC7X4 Air 13 Midnight (M2,16GB,256GB) 2024 64000 🚚
+                    elif i == 5:  # MacBook MC7X4 Air 13 Midnight (M2,16GB,256GB) 2024 64000 🚚
                         product_code, size, color, chip, memory, storage, year, price, country, delivery = groups
                         model = 'Air'
                         if not country:
                             country = self._extract_country(line)
                             
-                    elif i == 2:  # MacBook Air 13 M3: 8/256GB Gray - 69000
+                    elif i == 6:  # MacBook Air 13 M3: 8/256GB Gray - 69000
                         size, chip, memory, storage, color, price, country, delivery = groups
                         model = 'Air'
                         product_code = ""
@@ -422,6 +441,26 @@ class MacBookParser:
                         delivery = ''
                         if not country:
                             country = self._extract_country(line)
+                    
+                    elif i == 25:  # Короткий формат: MW0Y3 13" M4 10/8 16 256GB Starlight - 80.000
+                        product_code, size, chip, cpu_cores, gpu_cores, memory, storage, color, price = groups
+                        model = 'Air'
+                        country = ''
+                        delivery = ''
+                        price = price.replace('.', '').replace(',', '')
+                        
+                    elif i == 26:  # С флагом впереди: 🇺🇸MW0X3 13" M4 10/10 16 512GB Silver - 99.000
+                        country, product_code, size, chip, cpu_cores, gpu_cores, memory, storage, color, price = groups
+                        model = 'Air'
+                        delivery = ''
+                        price = price.replace('.', '').replace(',', '')
+                        
+                    elif i == 27:  # С эмодзи: 💻Z1GS000NK MacBook Air 13 M4 10/10 24Gb 1Tb Silver - 185.000
+                        product_code, size, chip, cpu_cores, gpu_cores, memory, storage, color, price = groups
+                        model = 'Air'
+                        country = ''
+                        delivery = ''
+                        price = price.replace('.', '').replace(',', '')
                     
                     else:
                         continue
