@@ -425,6 +425,66 @@ class AirPods(models.Model):
             return f"{self.model} {self.generation}"
         return self.model
 
+class ApplePencil(models.Model):
+    """Модель для Apple Pencil"""
+    
+    # Основные поля
+    model = models.CharField(max_length=30, default='Apple Pencil')  # Apple Pencil
+    generation = models.CharField(max_length=20)  # 1, 2, Pro, USB-C
+    connector = models.CharField(max_length=20)  # Lightning, USB-C
+    country = models.CharField(max_length=10)  # 🇺🇸, 🇯🇵, 🇮🇳, etc.
+    
+    # Цена и код продукта
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    product_code = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Метаданные
+    source = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Apple Pencil"
+        verbose_name_plural = "Apple Pencil"
+        # Уникальность по основным полям
+        unique_together = ['model', 'generation', 'connector', 'country']
+        ordering = ['generation', 'connector']
+    
+    def __str__(self):
+        return self.full_name
+    
+    @property
+    def full_name(self):
+        """Полное название Apple Pencil"""
+        parts = [self.model]
+        
+        if self.generation:
+            parts.append(self.generation)
+            
+        if self.connector and self.connector != 'Lightning':
+            parts.append(f"({self.connector})")
+        
+        if self.country:
+            parts.append(self.country)
+            
+        return " ".join(parts)
+    
+    @property
+    def display_price(self):
+        """Цена с наценкой для отображения"""
+        try:
+            markup = Markup.get_current_markup()
+            return int(self.price + markup)
+        except:
+            return int(self.price)
+    
+    @property
+    def model_display(self):
+        """Красивое отображение модели"""
+        if self.generation:
+            return f"{self.model} {self.generation}"
+        return self.model
+
 class Product(models.Model):
     """Универсальная модель для всех остальных товаров"""
     name = models.CharField(max_length=200)
