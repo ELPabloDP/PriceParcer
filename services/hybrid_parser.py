@@ -1,9 +1,10 @@
 """
-Гибридная система парсинга: шаблоны + GPT fallback
+Система парсинга только на шаблонах с детальным отчетом
 """
 import logging
 from typing import List, Dict, Any, Tuple
 import asyncio
+import re
 
 # Импортируем наши специализированные парсеры
 import sys
@@ -26,14 +27,12 @@ from services.airpods_service import AirPodsService
 from services.apple_pencil_service import ApplePencilService
 from services.macbook_service import macbook_service
 
-# Импортируем старую систему GPT для fallback
-from bot.gptapi import yandex_gpt
 from bot.database_service_async import db_service
 
 logger = logging.getLogger(__name__)
 
-class HybridParser:
-    """Гибридный парсер: сначала шаблоны, потом GPT"""
+class TemplateParser:
+    """Парсер только на шаблонах с детальным отчетом"""
     
     def __init__(self):
         # Инициализируем новые парсеры
@@ -95,23 +94,29 @@ class HybridParser:
     
     async def parse_message(self, text: str, source: str = "") -> Dict[str, Any]:
         """
-        Парсит сообщение с прайсами, используя гибридный подход
+        Парсит сообщение с прайсами только шаблонами с детальным отчетом
         
         Returns:
             Dict с результатами парсинга для каждого типа устройств
         """
-        logger.info(f"🔄 Начинаем гибридный парсинг сообщения ({len(text.split())} слов)")
+        logger.info(f"🔄 Начинаем парсинг только шаблонами ({len(text.split())} слов)")
         
         results = {
             'template_results': {},
-            'gpt_results': {},
             'total_saved': 0,
-            'processing_summary': []
+            'processing_summary': [],
+            'unparsed_lines': [],
+            'price_like_lines': [],
+            'parsed_lines': []
         }
         
         # Разбиваем текст на строки
         lines = text.strip().split('\n')
         processed_lines = set()  # Отслеживаем обработанные строки
+        
+        # Собираем все строки, которые выглядят как цены
+        price_like_lines = self._find_price_like_lines(lines)
+        results['price_like_lines'] = price_like_lines
         
         # Этап 1: Обработка специализированными парсерами (сортировка по приоритету)
         sorted_parsers = sorted(self.device_parsers.items(), key=lambda x: x[1].get('priority', 999))
@@ -141,7 +146,8 @@ class HybridParser:
                         
                         save_result = {
                             'template_saved': saved_count,
-                            'total_saved': saved_count
+                            'total_saved': saved_count,
+                            'parsed_count': len(parsed_data)
                         }
                     else:
                         # Для других устройств используем стандартный метод
@@ -161,6 +167,7 @@ class HybridParser:
                             save_result = {
                                 'total_saved': saved_count,
                                 'template_saved': saved_count,
+                                'parsed_count': len(parsed_data),
                                 'parsed_items': parsed_items
                             }
                         else:
@@ -169,6 +176,7 @@ class HybridParser:
                                 save_result['total_saved'] = save_result.get('saved', 0)
                             if 'template_saved' not in save_result:
                                 save_result['template_saved'] = save_result.get('saved', 0)
+                            save_result['parsed_count'] = len(parsed_data)
                     
                     results['template_results'][device_type] = save_result
                     results['total_saved'] += save_result['total_saved']
@@ -176,153 +184,28 @@ class HybridParser:
                     # Отмечаем обработанные строки
                     for data in parsed_data:
                         if isinstance(data, dict):
-                            processed_lines.add(data.get('source_line', '').strip())
+                            line = data.get('source_line', '').strip()
                         else:
-                            processed_lines.add(getattr(data, 'source_line', '').strip())
+                            line = getattr(data, 'source_line', '').strip()
+                        processed_lines.add(line)
+                        results['parsed_lines'].append(line)
                     
                     results['processing_summary'].append(
-                        f"✅ {device_type}: {save_result['template_saved']} шаблонами"
+                        f"✅ {device_type}: {save_result['template_saved']} сохранено из {save_result['parsed_count']} распознанных"
                     )
                 
-                # Если есть нераспознанные строки этого типа, отправляем в GPT с специализированным промптом
-                if unparsed_lines:
-                    logger.info(f"📤 Отправляем {len(unparsed_lines)} нераспознанных {device_type} строк в GPT")
-                    
-                    gpt_text = '\n'.join(unparsed_lines)
-                    gpt_parsed = await yandex_gpt.parse_prices(gpt_text, device_type)
-                    
-                    if gpt_parsed:
-                        gpt_saved = 0
-                        
-                        # Для MacBook и iPad используем специализированные сервисы
-                        if device_type == 'macbook':
-                            for item in gpt_parsed:
-                                result = await macbook_service_simple.save_macbook_price(item)
-                                if result:
-                                    gpt_saved += 1
-                        elif device_type == 'ipad':
-                            for item in gpt_parsed:
-                                result = await ipad_service_simple.save_ipad_price(item)
-                                if result:
-                                    gpt_saved += 1
-                        elif device_type == 'apple_watch':
-                            for item in gpt_parsed:
-                                result = await self.apple_watch_service.save_apple_watch_price(item)
-                                if result:
-                                    gpt_saved += 1
-                        else:
-                            # Для других устройств используем общий сервис
-                            gpt_saved = await db_service.process_parsed_prices(gpt_parsed, f"GPT-{device_type}")
-                        
-                        if device_type not in results['gpt_results']:
-                            results['gpt_results'][device_type] = {'saved': 0, 'parsed': 0}
-                        
-                        results['gpt_results'][device_type]['parsed'] += len(gpt_parsed)
-                        results['gpt_results'][device_type]['saved'] += gpt_saved
-                        results['total_saved'] += gpt_saved
-                        
-                        results['processing_summary'].append(
-                            f"🤖 {device_type}: {gpt_saved} через GPT"
-                        )
-                        
-                        # Отмечаем как обработанные
-                        for line in unparsed_lines:
-                            processed_lines.add(line.strip())
+                # Добавляем нераспознанные строки этого типа в общий список
+                results['unparsed_lines'].extend(unparsed_lines)
         
-        # Этап 2: Оставшиеся строки отправляем в общий GPT
+        # Этап 2: Собираем все нераспознанные строки
         remaining_lines = [line for line in lines if line.strip() and line.strip() not in processed_lines]
-        
-        if remaining_lines:
-            logger.info(f"📤 Отправляем {len(remaining_lines)} оставшихся строк в общий GPT")
-            
-            remaining_text = '\n'.join(remaining_lines)
-            gpt_parsed = await yandex_gpt.parse_prices(remaining_text)
-            
-            if gpt_parsed:
-                # Фильтруем товары по типам и обрабатываем их через специализированные сервисы
-                macbook_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'macbook' and item.get('firm', '').lower() == 'apple']
-                ipad_items = [item for item in gpt_parsed if item.get('device', '').lower().startswith('ipad') and item.get('firm', '').lower() == 'apple']
-                apple_watch_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple']
-                imac_items = [item for item in gpt_parsed if item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple']
-                airpods_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple']
-                apple_pencil_items = [item for item in gpt_parsed if item.get('device', '').lower() == 'apple pencil' and item.get('firm', '').lower() == 'apple']
-                other_items = [item for item in gpt_parsed if not (
-                    (item.get('device', '').lower() == 'macbook' and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower().startswith('ipad') and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() == 'apple watch' and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() in ['imac', 'mac mini'] and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() == 'airpods' and item.get('firm', '').lower() == 'apple') or
-                    (item.get('device', '').lower() == 'apple pencil' and item.get('firm', '').lower() == 'apple')
-                )]
-                
-                gpt_saved = 0
-                
-                # Обрабатываем MacBook товары через специализированный сервис
-                if macbook_items:
-                    logger.info(f"Обрабатываем {len(macbook_items)} MacBook товаров через специализированный сервис")
-                    for item in macbook_items:
-                        result = await macbook_service_simple.save_macbook_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем iPad товары через специализированный сервис
-                if ipad_items:
-                    logger.info(f"Обрабатываем {len(ipad_items)} iPad товаров через специализированный сервис")
-                    for item in ipad_items:
-                        result = await ipad_service_simple.save_ipad_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем Apple Watch товары через специализированный сервис
-                if apple_watch_items:
-                    logger.info(f"Обрабатываем {len(apple_watch_items)} Apple Watch товаров через специализированный сервис")
-                    for item in apple_watch_items:
-                        result = await self.apple_watch_service.save_apple_watch_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем iMac товары через специализированный сервис
-                if imac_items:
-                    logger.info(f"Обрабатываем {len(imac_items)} iMac товаров через специализированный сервис")
-                    for item in imac_items:
-                        result = await self.imac_service.save_imac_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем AirPods товары через специализированный сервис
-                if airpods_items:
-                    logger.info(f"Обрабатываем {len(airpods_items)} AirPods товаров через специализированный сервис")
-                    for item in airpods_items:
-                        result = await self.airpods_service.save_airpods_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем Apple Pencil товары через специализированный сервис
-                if apple_pencil_items:
-                    logger.info(f"Обрабатываем {len(apple_pencil_items)} Apple Pencil товаров через специализированный сервис")
-                    for item in apple_pencil_items:
-                        result = await self.apple_pencil_service.save_apple_pencil_price(item)
-                        if result:
-                            gpt_saved += 1
-                
-                # Обрабатываем остальные товары через общий сервис
-                if other_items:
-                    other_saved = await db_service.process_parsed_prices(other_items, "GPT-общий")
-                    gpt_saved += other_saved
-                
-                results['gpt_results']['general'] = {
-                    'parsed': len(gpt_parsed),
-                    'saved': gpt_saved
-                }
-                results['total_saved'] += gpt_saved
-                
-                results['processing_summary'].append(f"🤖 Общий GPT: {gpt_saved} товаров")
+        results['unparsed_lines'].extend(remaining_lines)
         
         # Генерируем итоговый отчет
-        summary = self._generate_summary(results)
+        summary = self._generate_detailed_summary(results)
         results['summary'] = summary
         
-        logger.info(f"✅ Гибридный парсинг завершен. Всего сохранено: {results['total_saved']}")
+        logger.info(f"✅ Парсинг шаблонами завершен. Всего сохранено: {results['total_saved']}")
         
         return results
     
@@ -418,27 +301,64 @@ class HybridParser:
         line_lower = line.lower()
         return any(word in line_lower for word in exclude_words)
     
-    def _generate_summary(self, results: Dict[str, Any]) -> str:
-        """Генерирует итоговый отчет"""
+    def _find_price_like_lines(self, lines: List[str]) -> List[str]:
+        """Находит строки, которые выглядят как цены"""
+        price_like = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Проверяем наличие цены (4-6 цифр или с точками/запятыми)
+            has_price = bool(re.search(r'\d{4,6}|\d+[.,]\d+', line))
+            
+            # Проверяем наличие флага страны
+            has_flag = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]', line))
+            
+            # Проверяем наличие GB/TB или других признаков товара
+            has_config = bool(re.search(r'(gb|tb|gb|tb|\d+\s*(gb|tb))', line.lower()))
+            
+            # Исключаем очевидно не товарные строки
+            exclude_words = ['гарантия', 'активаций', 'adapter', 'от 10 шт', 'mouse', 'trackpad']
+            has_exclude = any(word in line.lower() for word in exclude_words)
+            
+            if has_price and (has_flag or has_config) and not has_exclude:
+                price_like.append(line)
+        
+        return price_like
+    
+    def _generate_detailed_summary(self, results: Dict[str, Any]) -> str:
+        """Генерирует детальный отчет о парсинге"""
         summary_parts = []
         
+        # Общая статистика
+        total_price_like = len(results['price_like_lines'])
+        total_parsed = len(results['parsed_lines'])
+        total_unparsed = len(results['unparsed_lines'])
+        total_saved = results['total_saved']
+        
+        summary_parts.append("📊 **Детальный отчет о парсинге:**")
+        summary_parts.append(f"🔍 Найдено строк похожих на цены: **{total_price_like}**")
+        summary_parts.append(f"✅ Успешно распознано шаблонами: **{total_parsed}**")
+        summary_parts.append(f"💾 Сохранено в базу: **{total_saved}**")
+        summary_parts.append(f"❌ Не распознано: **{total_unparsed}**")
+        
+        # Статистика по устройствам
         if results['processing_summary']:
-            summary_parts.append("📊 Результаты обработки:")
+            summary_parts.append("\n📱 **По типам устройств:**")
             for item in results['processing_summary']:
                 summary_parts.append(f"   {item}")
         
-        summary_parts.append(f"\n✅ Всего сохранено: {results['total_saved']} товаров")
-        
-        # Детальная статистика
-        template_total = sum(r.get('total_saved', 0) for r in results['template_results'].values())
-        gpt_total = sum(r.get('saved', 0) for r in results['gpt_results'].values())
-        
-        if template_total > 0:
-            summary_parts.append(f"🎯 Шаблонами: {template_total}")
-        if gpt_total > 0:
-            summary_parts.append(f"🤖 GPT: {gpt_total}")
+        # Показываем нераспознанные строки
+        if results['unparsed_lines']:
+            summary_parts.append(f"\n❌ **Нераспознанные строки ({len(results['unparsed_lines'])}):**")
+            for i, line in enumerate(results['unparsed_lines'][:10], 1):  # Показываем первые 10
+                summary_parts.append(f"   {i}. `{line}`")
+            if len(results['unparsed_lines']) > 10:
+                summary_parts.append(f"   ... и еще {len(results['unparsed_lines']) - 10} строк")
         
         return '\n'.join(summary_parts)
 
 # Создаем глобальный экземпляр
-hybrid_parser = HybridParser()
+template_parser = TemplateParser()
