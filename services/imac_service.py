@@ -11,6 +11,37 @@ logger = logging.getLogger(__name__)
 class iMacService:
     """Сервис для сохранения данных iMac"""
     
+    async def parse_and_save_prices(self, lines: list, source: str = "") -> tuple[list, int]:
+        """
+        Парсит строки и сохраняет цены
+        Возвращает (parsed_items, saved_count)
+        """
+        from parsers.imac_parser import iMacParser
+        
+        parser = iMacParser()
+        parsed_items, unparsed = parser.parse_lines(lines)
+        
+        saved_count = 0
+        for item in parsed_items:
+            # Конвертируем в формат для save_imac_price
+            data = {
+                'device': 'iMac',
+                'generation': item.chip,
+                'variant': item.size,
+                'memory': item.memory,
+                'storage': item.storage,
+                'color': item.color,
+                'country': item.country,
+                'price': str(item.price),
+                'product_code': item.product_code,
+                'source': source
+            }
+            
+            if await self.save_imac_price(data):
+                saved_count += 1
+        
+        return parsed_items, saved_count
+    
     @sync_to_async
     def save_imac_price(self, imac_data: Dict[str, Any]) -> bool:
         """Сохраняет цену iMac в базу данных"""

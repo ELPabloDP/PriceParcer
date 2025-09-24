@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from parsers.iphone_parser import iphone_parser
 from parsers.macbook_parser import macbook_parser
-from parsers.ipad_parser import ipad_parser
+from parsers.ipad_parser import iPadParser
 from parsers.apple_watch_parser import AppleWatchParser
 from parsers.imac_parser import iMacParser
 from parsers.airpods_parser import AirPodsParser
@@ -62,7 +62,7 @@ class HybridParser:
                 'priority': 2
             },
             'ipad': {
-                'parser': ipad_parser,
+                'parser': iPadParser(),
                 'service': ipad_service_simple,
                 'keywords': ['ipad', 'mini', 'air', 'pro', 'wifi', 'lte', 'wi-fi'],
                 'priority': 3

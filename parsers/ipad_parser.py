@@ -1,8 +1,8 @@
 """
-Парсер для iPad
+Новый упрощенный парсер для iPad
 """
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 import logging
 
@@ -39,287 +39,353 @@ class iPadData:
         }
 
 class iPadParser:
-    """Парсер для iPad"""
+    """Новый упрощенный парсер для iPad"""
     
     def __init__(self):
-        # Паттерны для разных типов iPad
+        # Простые и эффективные паттерны
         self.patterns = [
-            # iPad mini 7 512LTE Blue🇭🇰 — 86100 (без пробела перед LTE)
-            r'iPad\s+(mini|air|pro)?\s*(\d+)\s*(\d{4})?\s+(\d+)(Wi-Fi|LTE|WiFi)\s+(\w+(?:\s+\w+)*)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇹🇷🇦🇷]+)(?:\([^)]*\))?\s*[—–]\s*(\d+)',
-            # iPad mini 7 256 Wi-Fi Starlight🇺🇸 — 44400
-            r'iPad\s+(mini|air|pro)?\s*(\d+)\s*(\d{4})?\s+(\d+)\s+(Wi-Fi|LTE|WiFi)\s+(\w+(?:\s+\w+)*)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇹🇷🇦🇷]+)(?:\([^)]*\))?\s*[—–]\s*(\d+)',
-            # iPad 11 2025 128 Wi-Fi Blue🇺🇸 — 31000
-            r'iPad\s+(\d+)\s+(\d{4})\s+(\d+)\s+(Wi-Fi|LTE|WiFi)\s+(\w+(?:\s+\w+)*)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇹🇷🇦🇷]+)(?:\([^)]*\))?\s*[—–]\s*(\d+)',
-            # 🇺🇸 iPad 10 256GB Blue Wi-Fi — 32.000₽
-            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+iPad\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s*[—–]\s*([\d.,]+)₽?',
-            # 🇺🇸 iPad Air 11 M3 128GB Blue Wi-Fi — 43.600₽
-            r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+iPad\s+(Air|Pro|Mini)\s+(\d+)\s+(M\d+|A\d+)?\s*(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s*[—–]\s*([\d.,]+)₽?',
-            # iPad 11 256 Yellow WIFI MD4J4 - 36.000
-            r'ipad\s+(\d+)\s+(\d+)\s+(\w+)\s+(wifi|lte|wi-fi)\s+([a-z0-9]+)\s*[-–]\s*([\d.,]+)',
-            
-            # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸
-            r'ipad\s+mini\s+(\d+)\s+(\d+gb)\s+(\w+)\s+(wifi|lte)[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
-            
-            # iPad Air 11 M3 128 Blue Wi-Fi 🇺🇸 42500
-            r'ipad\s+air\s+(\d+)\s+(m\d+)\s+(\d+gb)\s+(\w+)\s+(wi-fi|wifi|lte)\s*([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)\s*([\d.,]+)',
-            
-            # iPad Pro 11 M4 256 Black LTE - 95.000
-            r'ipad\s+pro\s+(\d+)\s+(m\d+)\s+(\d+gb)\s+(\w+)\s+(lte|wi-fi|wifi)[-–]\s*([\d.,]+)',
-            
-            # iPad 9 64GB Gray LTE 24500
-            r'ipad\s+(\d+)\s+(\d+gb)\s+(\w+)\s+(lte|wifi|wi-fi)\s*([\d.,]+)',
-            
-            # iPad Air 11 M3 (2025) 128 Blue Wi-Fi 🇺🇸 42500
-            r'ipad\s+air\s+(\d+)\s+(m\d+)\s*\([^)]+\)\s+(\d+gb)\s+(\w+)\s+(wi-fi|wifi|lte)\s*([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)\s*([\d.,]+)',
-            
-            # iPad Pro 13 M4 1TB Black LTE - 146.000
-            r'ipad\s+pro\s+(\d+)\s+(m\d+)\s+(\d+gb)\s+(\w+)\s+(lte|wi-fi|wifi)[-–]\s*([\d.,]+)',
-            
-            # iPad 11 256 Yellow WIFI MD4J4 - 36.000 (исправленный паттерн)
-            r'ipad\s+(\d+)\s+(\d+gb)\s+(\w+)\s+(wifi|lte)\s+([a-z0-9]+)\s*[-–]\s*([\d.,]+)',
-            
-            # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸.
-            r'ipad\s+mini\s+(\d+)\s+(\d+)\s+(\w+)\s+(wifi|lte)[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
-            
-            # iPad 11 (2025) 128 Blue WiFi -   31500🇺🇸.
-            r'ipad\s+(\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
-            
-            # iPad Air 11 M3 (2025) 128 Gray WiFi -   44500🇺🇸.
-            r'ipad\s+air\s+(\d+)\s+(m\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
-            
-            # iPad Air 13 M2 (2024) 128 Blue WiFi -  54000🇺🇸.
-            r'ipad\s+air\s+(\d+)\s+(m\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+)\s+(wifi|lte)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇪🇺🇦🇪🇨🇦🇻🇳]*)',
+            # 1. iPad Mini 7 256GB Blue Wi-Fi 42800
+            {
+                'pattern': r'iPad\s+Mini\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Mini'
+            },
+            # 2. iPad Air 11 M3 128GB Blue Wi-Fi 42500
+            {
+                'pattern': r'iPad\s+Air\s+(\d+)\s+(M\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s+(\d+)',
+                'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Air'
+            },
+            # 3. iPad Pro 11 M4 256GB Black LTE 112000
+            {
+                'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s+(\d+)',
+                'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Pro'
+            },
+            # 4. iPad 9 64GB Gray LTE 24500
+            {
+                'pattern': r'iPad\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|LTE|WiFi)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'price'],
+                'variant': ''
+            },
+            # 5. iPad Mini 7 256 Starlight WiFi- 43000🇺🇸
+            {
+                'pattern': r'iPad\s+Mini\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(WiFi|Wi-Fi|LTE)[-–]\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'price', 'country'],
+                'variant': 'Mini'
+            },
+            # 6. iPad Air 11 M3 (2025) 128 Blue Wi-Fi 42500
+            {
+                'pattern': r'iPad\s+Air\s+(\d+)\s+(M\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(\d+)',
+                'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Air'
+            },
+            # 7. iPad 11 (2025) 128 Blue WiFi - 31500🇺🇸
+            {
+                'pattern': r'iPad\s+(\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(WiFi|Wi-Fi|LTE)\s*[-–]\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'price', 'country'],
+                'variant': ''
+            },
+            # 8. iPad 10 64 Silver LTE - 33.000
+            {
+                'pattern': r'iPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(LTE|WiFi|Wi-Fi)\s*[-–]\s*([\d.,]+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'price'],
+                'variant': ''
+            },
+            # 9. Apple iPad Air 11 M3 Wi-Fi 128GB Blue 42500🇺🇸
+            {
+                'pattern': r'Apple\s+iPad\s+Air\s+(\d+)\s+(M\d+)\s+(Wi-Fi|WiFi|LTE)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+                'groups': ['generation', 'chip', 'connectivity', 'storage', 'color', 'price', 'country'],
+                'variant': 'Air'
+            },
+            # 10. MINI 7 256 Blue Wi-Fi 🇺🇸 43000
+            {
+                'pattern': r'MINI\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'country', 'price'],
+                'variant': 'Mini'
+            },
+            # 11. iPad Air 11 M3 (2025) 128 Gray WiFi - 44500🇺🇸
+            {
+                'pattern': r'iPad\s+Air\s+(\d+)\s+(M\d+)\s*\([^)]+\)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(WiFi|Wi-Fi|LTE)\s*[-–]\s*([\d.,]+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+                'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price', 'country'],
+                'variant': 'Air'
+            },
+            # 12. iPad Mini 7 256 Wi-Fi Starlight 44100🇺🇸
+            {
+                'pattern': r'iPad\s+Mini\s+(\d+)\s+(\d+)\s+(Wi-Fi|WiFi|LTE)\s+(\w+(?:\s+\w+)*)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+                'groups': ['generation', 'storage', 'connectivity', 'color', 'price', 'country'],
+                'variant': 'Mini'
+            },
+            # 13. iPad Pro 11 M4 256 Black LTE - 95.000
+            {
+                'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*[-–]\s*([\d.,]+)',
+                'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Pro'
+            },
+            # 14. iPad 11 128 Pink Wi-Fi 🇺🇸 31800
+            {
+                'pattern': r'iPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'country', 'price'],
+                'variant': ''
+            },
+            # 15. iPad Air 11 128GB Blue Wi-Fi M3 (2025) M3 42500
+            {
+                'pattern': r'iPad\s+Air\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(M\d+)\s*\([^)]+\)\s+(M\d+)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'chip', 'chip2', 'price'],
+                'variant': 'Air'
+            },
+            # 16. iPad Pro 13 1TB Space Black LTE (2024) M4 137000
+            {
+                'pattern': r'iPad\s+Pro\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*\([^)]+\)\s+(M\d+)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'connectivity', 'chip', 'price'],
+                'variant': 'Pro'
+            },
+            # 17. iPad Mini 2024 128 Black LTE - 53.000
+            {
+                'pattern': r'iPad\s+Mini\s+(\d{4})\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*[-–]\s*([\d.,]+)',
+                'groups': ['year', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Mini'
+            },
+            # 18. iPad Air 11 2024 128 Blue LTE - 54.000
+            {
+                'pattern': r'iPad\s+Air\s+(\d+)\s+(\d{4})\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*[-–]\s*([\d.,]+)',
+                'groups': ['generation', 'year', 'storage', 'color', 'connectivity', 'price'],
+                'variant': 'Air'
+            },
+        # 19. iPad Pro 11 M4 1TB Black Wi-Fi - 136.000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Pro'
+        },
+        # 20. iPad 11 256GB Pink Wi-Fi (2025) 36500
+        {
+            'pattern': r'iPad\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s*\([^)]+\)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'price'],
+            'variant': ''
+        },
+        # 21. iPad Air 4 64GB Gray WIFI 2020 30200
+        {
+            'pattern': r'iPad\s+Air\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(\d{4})\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'year', 'price'],
+            'variant': 'Air'
+        },
+        # 22. iPad Air 11 128GB Starlight LTE (2025) M3 59000
+        {
+            'pattern': r'iPad\s+Air\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*\([^)]+\)\s+(M\d+)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'chip', 'price'],
+            'variant': 'Air'
+        },
+        # 23. iPad Pro 11 128GB Silver WIFI (2021) 47000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s*\([^)]+\)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Pro'
+        },
+        # 24. iPad Pro 13 1TB Space Black LTE (2024) M4 137000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(\d+TB?)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*\([^)]+\)\s+(M\d+)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'chip', 'price'],
+            'variant': 'Pro'
+        },
+        # 25. iPad Mini 7 256 Blue Wi-Fi 43500🇺🇸
+        {
+            'pattern': r'iPad\s+Mini\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'price', 'country'],
+            'variant': 'Mini'
+        },
+        # 26. iPad 10 256 Blue Wi-Fi 31000🇺🇸
+        {
+            'pattern': r'iPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'price', 'country'],
+            'variant': ''
+        },
+        # 27. iPad 11 128 Blue Wi-Fi 31200🇺🇸
+        {
+            'pattern': r'iPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'price', 'country'],
+            'variant': ''
+        },
+        # 28. iPad Air 11 M3 (2025) 128 Wi-Fi Space Gray 45500🇺🇸
+        {
+            'pattern': r'iPad\s+Air\s+(\d+)\s+(M\d+)\s*\([^)]+\)\s+(\d+)\s+(Wi-Fi|WiFi|LTE)\s+(\w+(?:\s+\w+)*)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+            'groups': ['generation', 'chip', 'storage', 'connectivity', 'color', 'price', 'country'],
+            'variant': 'Air'
+        },
+        # 29. iPad Pro 11 512 M4 Space Black LTE 112000🇺🇸
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(\d+)\s+(M\d+)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]*)',
+            'groups': ['generation', 'storage', 'chip', 'color', 'connectivity', 'price', 'country'],
+            'variant': 'Pro'
+        },
+        # 30. IPad 11 256 Yellow WIFI MD4J4 - 36.000
+        {
+            'pattern': r'IPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+([A-Z0-9]+)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'product_code', 'price'],
+            'variant': ''
+        },
+        # 31. iPad Air 11 2024 1TB Starlight Wi-Fi - 81.000
+        {
+            'pattern': r'iPad\s+Air\s+(\d+)\s+(\d{4})\s+(\d+TB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'year', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Air'
+        },
+        # 32. iPad Air 13 2024 256 LTE Purple - 76.000
+        {
+            'pattern': r'iPad\s+Air\s+(\d+)\s+(\d{4})\s+(\d+)\s+(LTE|Wi-Fi|WiFi)\s+(\w+(?:\s+\w+)*)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'year', 'storage', 'connectivity', 'color', 'price'],
+            'variant': 'Air'
+        },
+        # 33. iPad Pro 11 M4 1TB Black Wi-Fi - 136.000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+TB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Pro'
+        },
+        # 34. iPad Pro 13 M4 1TB Black LTE - 146.000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+TB?)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Pro'
+        },
+        # 35. iPad Pro 13 M4 2TB Silver LTE - 156.000
+        {
+            'pattern': r'iPad\s+Pro\s+(\d+)\s+(M\d+)\s+(\d+TB?)\s+(\w+(?:\s+\w+)*)\s+(LTE|Wi-Fi|WiFi)\s*[-–]\s*([\d.,]+)',
+            'groups': ['generation', 'chip', 'storage', 'color', 'connectivity', 'price'],
+            'variant': 'Pro'
+        },
+        # 36. iPad 11 256 Yellow Wi-Fi🇺🇸 36200 (без пробела перед флагом)
+        {
+            'pattern': r'iPad\s+(\d+)\s+(\d+)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'country', 'price'],
+            'variant': ''
+        },
+        # 37. iPad Mini 7 256GB Strarlight Wi-Fi MXND3 42800 (с опечаткой)
+        {
+            'pattern': r'iPad\s+Mini\s+(\d+)\s+(\d+GB?)\s+(\w+(?:\s+\w+)*)\s+(Wi-Fi|WiFi|LTE)\s+([A-Z0-9]+)\s+(\d+)',
+            'groups': ['generation', 'storage', 'color', 'connectivity', 'product_code', 'price'],
+            'variant': 'Mini'
+        }
         ]
         
-        # Цвета iPad
-        self.colors = {
-            'gray': 'Space Gray',
-            'silver': 'Silver',
-            'pink': 'Pink',
-            'blue': 'Blue',
-            'purple': 'Purple',
-            'yellow': 'Yellow',
-            'starlight': 'Starlight',
-            'black': 'Space Black',
-            'white': 'White',
-            'gold': 'Gold',
-            'rose': 'Rose Gold',
-            'green': 'Green',
-            'red': 'Red'
-        }
-        
-        # Подключение
+        # Маппинг подключений
         self.connectivity_map = {
+            'Wi-Fi': 'Wi-Fi',
+            'WiFi': 'Wi-Fi', 
+            'LTE': 'LTE',
             'wifi': 'Wi-Fi',
             'wi-fi': 'Wi-Fi',
             'lte': 'LTE'
         }
 
     def parse_lines(self, lines: List[str]) -> Tuple[List[iPadData], List[str]]:
-        """Парсит строки с iPad"""
-        parsed_data = []
+        """Парсит список строк"""
+        parsed_items = []
         unparsed_lines = []
         
         for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            parsed = self._parse_single_line(line)
-            if parsed:
-                parsed_data.append(parsed)
+            result = self._parse_single_line(line)
+            if result:
+                parsed_items.append(result)
             else:
                 unparsed_lines.append(line)
         
-        logger.info(f"iPad парсер: обработано {len(parsed_data)} строк, нераспознано {len(unparsed_lines)}")
-        return parsed_data, unparsed_lines
+        return parsed_items, unparsed_lines
 
-    def _parse_single_line(self, line: str) -> iPadData:
+    def _parse_single_line(self, line: str) -> Optional[iPadData]:
         """Парсит одну строку"""
         line_lower = line.lower()
         
-        # Проверяем, что это iPad (может начинаться с флага)
-        if 'ipad' not in line_lower:
+        # Проверяем, что это iPad
+        if 'ipad' not in line_lower and 'mini' not in line_lower:
             return None
         
         # Пробуем разные паттерны
-        for i, pattern in enumerate(self.patterns):
-            match = re.search(pattern, line_lower, re.IGNORECASE)
+        for i, pattern_info in enumerate(self.patterns):
+            match = re.search(pattern_info['pattern'], line, re.IGNORECASE)
             if match:
-                return self._extract_data_from_match(match, line, i)
+                return self._extract_data_from_match(match, pattern_info, line, i)
         
         return None
 
-    def _extract_data_from_match(self, match: re.Match, original_line: str, pattern_index: int) -> iPadData:
-        """Извлекает данные из совпадения"""
+    def _extract_data_from_match(self, match, pattern_info: Dict, line: str, pattern_index: int) -> iPadData:
+        """Извлекает данные из regex match"""
         groups = match.groups()
+        data = {}
         
-        # Базовые данные
-        generation = ""
-        variant = ""
-        size = ""
-        storage = ""
-        color = ""
-        connectivity = ""
-        product_code = ""
-        country = ""
-        price = 0
+        # Извлекаем данные по группам
+        for i, group_name in enumerate(pattern_info['groups']):
+            if i < len(groups):
+                data[group_name] = groups[i]
         
-        # Анализируем группы в зависимости от индекса паттерна
-        if pattern_index == 0:
-            # iPad mini 7 512LTE Blue🇭🇰 — 86100 (без пробела перед LTE)
-            # Группы: (variant, generation, year?, storage, connectivity, color, country, price)
-            variant = groups[0] if groups[0] else ""
-            generation = groups[1]
-            year = groups[2] if groups[2] else ""
-            storage = groups[3]
-            if not storage.endswith('GB'):
-                storage = f"{storage}GB"
-            connectivity = self.connectivity_map.get(groups[4], groups[4])
-            color = self._normalize_color(groups[5])
-            country = groups[6]
-            price = self._parse_price(groups[7])
-            size = generation
-            if variant:
-                generation = f"{variant.title()} {generation}"
-                
-        elif pattern_index == 1:
-            # iPad mini 7 256 Wi-Fi Starlight🇺🇸 — 44400
-            # Группы: (variant, generation, year?, storage, connectivity, color, country, price)
-            variant = groups[0] if groups[0] else ""
-            generation = groups[1]
-            year = groups[2] if groups[2] else ""
-            storage = groups[3]
-            if not storage.endswith('GB'):
-                storage = f"{storage}GB"
-            connectivity = self.connectivity_map.get(groups[4], groups[4])
-            color = self._normalize_color(groups[5])
-            country = groups[6]
-            price = self._parse_price(groups[7])
-            size = generation
-            if variant:
-                generation = f"{variant.title()} {generation}"
-                
-        elif pattern_index == 2:
-            # iPad 11 2025 128 Wi-Fi Blue🇺🇸 — 31000
-            # Группы: (generation, year, storage, connectivity, color, country, price)
-            generation = groups[0]
-            year = groups[1]
-            storage = groups[2]
-            if not storage.endswith('GB'):
-                storage = f"{storage}GB"
-            connectivity = self.connectivity_map.get(groups[3], groups[3])
-            color = self._normalize_color(groups[4])
-            country = groups[5]
-            price = self._parse_price(groups[6])
-            variant = ""
-            size = generation
-            generation = f"{generation} ({year})"
-            
-        elif pattern_index == 3:
-            # 🇺🇸 iPad 10 256GB Blue Wi-Fi — 32.000₽
-            # Группы: (country, generation, storage, color, connectivity, price)
-            country = groups[0]
-            generation = groups[1]
-            storage = groups[2]
-            color = self._normalize_color(groups[3])
-            connectivity = self.connectivity_map.get(groups[4], groups[4])
-            price = self._parse_price(groups[5])
-            variant = ""
-            size = generation
-            
-        elif pattern_index == 4:
-            # 🇺🇸 iPad Air 11 M3 128GB Blue Wi-Fi — 43.600₽
-            # Группы: (country, variant, size, chip, storage, color, connectivity, price)
-            if len(groups) >= 8:
-                country = groups[0]
-                variant = groups[1]
-                size = groups[2]
-                chip = groups[3] if groups[3] else ""
-                storage = groups[4]
-                color = self._normalize_color(groups[5])
-                connectivity = self.connectivity_map.get(groups[6], groups[6])
-                price = self._parse_price(groups[7])
-                generation = f"{variant} {size} {chip}".strip()
-            else:
-                # Fallback для случая без чипа
-                country = groups[0]
-                variant = groups[1]
-                size = groups[2]
-                storage = groups[3]
-                color = self._normalize_color(groups[4])
-                connectivity = self.connectivity_map.get(groups[5], groups[5])
-                price = self._parse_price(groups[6])
-                generation = f"{variant} {size}".strip()
-            
-        else:
-            # Старые паттерны - обрабатываем как раньше
-            if len(groups) >= 6:
-                if 'mini' in original_line.lower():
-                    # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸
-                    generation = f"Mini {groups[0]}"
-                    variant = "Mini"
-                    size = groups[0]
-                    storage = groups[1]
-                    color = self._normalize_color(groups[2])
-                    connectivity = self.connectivity_map.get(groups[3], groups[3])
-                    price = self._parse_price(groups[4])
-                    country = groups[5] if len(groups) > 5 else ""
-                    
-                else:
-                    # iPad 11 256 Yellow WIFI MD4J4 - 36.000
-                    generation = groups[0]  # 11
-                    size = groups[0]
-                    storage = f"{groups[1]}GB"  # Добавляем GB
-                    color = self._normalize_color(groups[2])
-                    connectivity = self.connectivity_map.get(groups[3], groups[3])
-                    product_code = groups[4] if len(groups) > 4 else ""
-                    price = self._parse_price(groups[5]) if len(groups) > 5 else 0
+        # Нормализуем данные
+        generation = data.get('generation', '')
+        variant = pattern_info.get('variant', '')
+        storage = self._normalize_storage(data.get('storage', ''))
+        color = self._normalize_color(data.get('color', ''))
+        connectivity = self.connectivity_map.get(data.get('connectivity', ''), data.get('connectivity', ''))
+        country = data.get('country', '')
+        price = self._parse_price(data.get('price', '0'))
         
-        # Новые паттерны для современных форматов
-        if pattern_index == 12:  # iPad Mini 7 256 Starlight WiFi- 43000🇺🇸.
-            # Группы: (generation, storage, color, connectivity, price, country)
-            generation = f"Mini {groups[0]}"
-            variant = "Mini"
-            size = groups[0]
-            storage = f"{groups[1]}GB"
-            color = self._normalize_color(groups[2])
-            connectivity = self.connectivity_map.get(groups[3], groups[3])
-            price = self._parse_price(groups[4])
-            country = groups[5] if groups[5] else ""
-            
-        elif pattern_index == 13:  # iPad 11 (2025) 128 Blue WiFi -   31500🇺🇸.
-            # Группы: (generation, storage, color, connectivity, price, country)
-            generation = f"{groups[0]} (2025)"
-            variant = ""
-            size = groups[0]
-            storage = f"{groups[1]}GB"
-            color = self._normalize_color(groups[2])
-            connectivity = self.connectivity_map.get(groups[3], groups[3])
-            price = self._parse_price(groups[4])
-            country = groups[5] if len(groups) > 5 and groups[5] else ""
-            
-        elif pattern_index == 14:  # iPad Air 11 M3 (2025) 128 Gray WiFi -   44500🇺🇸.
-            # Группы: (size, chip, storage, color, connectivity, price, country)
-            generation = f"Air {groups[0]} {groups[1]} (2025)"
-            variant = "Air"
-            size = groups[0]
-            storage = f"{groups[2]}GB"
-            color = self._normalize_color(groups[3])
-            connectivity = self.connectivity_map.get(groups[4], groups[4])
-            price = self._parse_price(groups[5])
-            country = groups[6] if len(groups) > 6 and groups[6] else ""
-            
-        elif pattern_index == 15:  # iPad Air 13 M2 (2024) 128 Blue WiFi -  54000🇺🇸.
-            # Группы: (size, chip, storage, color, connectivity, price, country)
-            generation = f"Air {groups[0]} {groups[1]} (2024)"
-            variant = "Air"
-            size = groups[0]
-            storage = f"{groups[2]}GB"
-            color = self._normalize_color(groups[3])
-            connectivity = self.connectivity_map.get(groups[4], groups[4])
-            price = self._parse_price(groups[5])
-            country = groups[6] if len(groups) > 6 and groups[6] else ""
+        # Определяем размер
+        size = generation
+        
+        # Обрабатываем специальные случаи
+        if pattern_index == 17:  # iPad Mini 2024 128 Black LTE - 53.000
+            # Для этого паттерна generation = year, нужно поменять местами
+            year = data.get('year', '')
+            if year:
+                generation = f"Mini {year}"
+                size = year
+        elif pattern_index == 21:  # iPad Air 4 64GB Gray WIFI 2020 30200
+            # Для этого паттерна year в конце
+            year = data.get('year', '')
+            if year:
+                generation += f" ({year})"
+        elif pattern_index == 22:  # iPad Air 11 128GB Starlight LTE (2025) M3 59000
+            # Для этого паттерна chip в конце
+            chip = data.get('chip', '')
+            if chip:
+                generation += f" {chip}"
+        elif pattern_index == 24:  # iPad Pro 13 1TB Space Black LTE (2024) M4 137000
+            # Для этого паттерна chip в конце
+            chip = data.get('chip', '')
+            if chip:
+                generation += f" {chip}"
+        elif pattern_index == 28:  # iPad Air 11 M3 (2025) 128 Wi-Fi Space Gray 45500🇺🇸
+            # Для этого паттерна chip в начале
+            chip = data.get('chip', '')
+            if chip:
+                generation += f" {chip}"
+        elif pattern_index == 29:  # iPad Pro 11 512 M4 Space Black LTE 112000🇺🇸
+            # Для этого паттерна chip в середине
+            chip = data.get('chip', '')
+            if chip:
+                generation += f" {chip}"
+        elif pattern_index == 31:  # iPad Air 11 2024 1TB Starlight Wi-Fi - 81.000
+            # Для этого паттерна year в середине
+            year = data.get('year', '')
+            if year:
+                generation += f" ({year})"
+        elif pattern_index == 32:  # iPad Air 13 2024 256 LTE Purple - 76.000
+            # Для этого паттерна year в середине
+            year = data.get('year', '')
+            if year:
+                generation += f" ({year})"
+        
+        # Формируем полное поколение
+        if variant:
+            generation = f"{variant} {generation}"
+        
+        # Добавляем чип если есть
+        chip = data.get('chip', '')
+        if chip:
+            generation += f" {chip}"
+        
+        # Добавляем год если есть (для паттернов с годом)
+        year = data.get('year', '')
+        if year and pattern_index != 17:  # Не для паттерна 17, там год уже обработан
+            generation += f" ({year})"
         
         return iPadData(
             generation=generation,
@@ -328,53 +394,58 @@ class iPadParser:
             storage=storage,
             color=color,
             connectivity=connectivity,
-            product_code=product_code,
+            product_code='',
             country=country,
             price=price,
-            source_line=original_line
+            source_line=line
         )
+
+    def _normalize_storage(self, storage: str) -> str:
+        """Нормализует объем памяти"""
+        if not storage:
+            return ""
+        
+        # Убираем лишние пробелы
+        storage = storage.strip()
+        
+        # Добавляем GB если нет
+        if storage.isdigit():
+            storage = f"{storage}GB"
+        elif not storage.upper().endswith('GB') and not storage.upper().endswith('TB'):
+            storage = f"{storage}GB"
+        
+        return storage
 
     def _normalize_color(self, color: str) -> str:
         """Нормализует цвет"""
-        color_lower = color.lower()
-        return self.colors.get(color_lower, color.title())
+        if not color:
+            return ""
+        
+        # Убираем лишние пробелы и приводим к правильному регистру
+        color = color.strip().title()
+        
+        return color
 
     def _parse_price(self, price_str: str) -> int:
         """Парсит цену"""
-        try:
-            # Убираем все кроме цифр, точек и запятых
-            price_clean = re.sub(r'[^\d.,]', '', price_str)
-            
-            # В российских прайсах:
-            # 32.000 = 32000 (точка как разделитель тысяч)
-            # 32,5 = 32.5 (запятая как десятичная точка)
-            
-            # Если есть и точка и запятая, то точка - разделитель тысяч
-            if '.' in price_clean and ',' in price_clean:
-                # Убираем точки (разделители тысяч), запятую заменяем на точку
-                price_clean = price_clean.replace('.', '').replace(',', '.')
-                return int(float(price_clean))
-            
-            # Если только точка и цифр больше 3 после точки, то это разделитель тысяч
-            elif '.' in price_clean:
-                parts = price_clean.split('.')
-                if len(parts) == 2 and len(parts[1]) == 3:
-                    # Это разделитель тысяч: 32.000 -> 32000
-                    return int(price_clean.replace('.', ''))
-                else:
-                    # Это десятичная точка: 32.5 -> 32
-                    return int(float(price_clean))
-            
-            # Если только запятая, то это десятичная точка
-            elif ',' in price_clean:
-                return int(float(price_clean.replace(',', '.')))
-            
-            # Если только цифры
-            else:
-                return int(price_clean)
-                
-        except:
+        if not price_str:
             return 0
-
-# Создаем экземпляр парсера
-ipad_parser = iPadParser()
+        
+        # Убираем все кроме цифр, точек и запятых
+        price_str = re.sub(r'[^\d.,]', '', str(price_str))
+        
+        if not price_str:
+            return 0
+        
+        # Обрабатываем точку как разделитель тысяч
+        if '.' in price_str and ',' not in price_str:
+            # Если есть точка, но нет запятой, то точка - разделитель тысяч
+            price_str = price_str.replace('.', '')
+        elif ',' in price_str:
+            # Если есть запятая, то она - разделитель тысяч
+            price_str = price_str.replace(',', '')
+        
+        try:
+            return int(price_str)
+        except ValueError:
+            return 0

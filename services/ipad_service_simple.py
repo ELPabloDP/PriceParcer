@@ -98,10 +98,11 @@ class iPadServiceSimple:
     def parse_and_save_prices(self, text: str, source: str = "") -> Dict[str, int]:
         """Парсит и сохраняет цены iPad из текста"""
         try:
-            from parsers.ipad_parser import ipad_parser
+            from parsers.ipad_parser import iPadParser
             
             lines = text.strip().split('\n')
-            parsed_data, unparsed_lines = ipad_parser.parse_lines(lines)
+            parser = iPadParser()
+            parsed_data, unparsed_lines = parser.parse_lines(lines)
             
             saved_count = 0
             for data in parsed_data:

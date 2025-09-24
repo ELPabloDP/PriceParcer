@@ -90,6 +90,84 @@ class IPhoneParser:
                 'pattern': r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)(\d{1,2}[A-Z]?)(Plus|Pro Max|Pro)?\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s*-\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)?(2Sim|2SIM)?',
                 'groups': ['country', 'generation', 'variant', 'storage', 'color', 'price', 'country2', 'sim_code'],
                 'variant': 'from_match'
+            },
+            # Формат с GB в памяти: 14 128GB Midnight 2Sim 🇨🇳 43200
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)?\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': ''
+            },
+            # Формат без пробела перед флагом: 13 128 Midnight 38500🇮🇳
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат Apple iPhone: Apple iPhone 11 64GB Black 27100🇷🇺
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат Apple iPhone с вариантом: Apple iPhone 16 Pro 128GB Black 2SIM 80000🇨🇳
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)?\s*(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'sim_code', 'price', 'country'],
+                'variant': 'from_match'
+            },
+            # Формат с тире и эмодзи: 14 128 Black 2 Sim 🇨🇳 - 43.300🚘
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(2\s*Sim|2Sim|2SIM)?\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s*-\s*(\d+[.,]\d+|\d+)[🚘🚚]?',
+                'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': ''
+            },
+            # Формат с 2Sim в конце: 16 Pro 128GB Black 2Sim 🇨🇳 81000
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': 'from_match'
+            },
+            # Формат с 2Sim в конце без варианта: 14 128GB Midnight 2Sim 🇨🇳 43200
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
+                'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': ''
+            },
+            # Формат с эмодзи в конце: 16 Pro 128GB Black 2Sim 🇨🇳 81000 🚚
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)\s*[🚘🚚]?',
+                'groups': ['generation', 'variant', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': 'from_match'
+            },
+            # Формат Apple iPhone с пробелами: Apple iPhone 11 64GB Black  27100🇷🇺
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат Apple iPhone с 2SIM: Apple iPhone 14 128GB Starlight 2SIM  42000🇨🇳
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'sim_code', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат Apple iPhone с пробелами: Apple iPhone 11 64GB Black  27100🇷🇺
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат Apple iPhone с пробелами (без GB): Apple iPhone 11 64 Black  27100🇷🇺
+            {
+                'pattern': r'Apple iPhone\s+(\d{1,2}[A-Z]?)\s+(\d+)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country'],
+                'variant': ''
+            },
+            # Формат с тире и эмодзи: 14 128 Black 2 Sim 🇨🇳 - 43.300🚘
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(2\s*Sim|2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s*-\s*(\d+[.,]\d+|\d+)[🚘🚚]?',
+                'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
+                'variant': ''
             }
         ]
     
@@ -174,15 +252,23 @@ class IPhoneParser:
         line_lower = line.lower()
         
         # Должен содержать признаки iPhone цены
-        has_generation = bool(re.search(r'(13|14|15|16|16e)', line_lower))
+        has_generation = bool(re.search(r'(11|12|13|14|15|16|16e)', line_lower))
         has_storage = bool(re.search(r'(128|256|512|1tb|\b\d+\s*(gb|tb))', line_lower))  # Добавили конкретные объемы
-        has_price = bool(re.search(r'\d{4,6}', line))
+        has_price = bool(re.search(r'\d{4,6}|\d+[.,]\d+', line))  # Добавили поддержку цен с точкой/запятой
         has_flag = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]', line))
         
+        # Дополнительная проверка для Apple iPhone строк
+        has_apple_iphone = bool(re.search(r'apple\s+iphone', line_lower))
+        
         # Исключаем очевидно не iPhone строки
-        exclude_words = ['ipad', 'macbook', 'airpods', 'watch', 'adapter', 'гарантия', 'активаций']
+        exclude_words = ['ipad', 'macbook', 'airpods', 'watch', 'adapter', 'гарантия', 'активаций', 'aw ', 'ultra 2', 'mini 7', 'pro 11']
         has_exclude = any(word in line_lower for word in exclude_words)
         
+        # Для Apple iPhone строк нужны только generation, price и flag
+        if has_apple_iphone:
+            return has_generation and has_price and has_flag and not has_exclude
+        
+        # Для обычных iPhone строк нужны все признаки
         return has_generation and has_storage and has_price and has_flag and not has_exclude
     
     def _parse_single_line(self, line: str) -> Optional[IPhonePriceData]:
@@ -215,7 +301,12 @@ class IPhoneParser:
         color = self._normalize_color(data.get('color', ''))
         country_flag = data.get('country', data.get('country2', '🇺🇸'))
         country_code = data.get('sim_code', '')
-        price = int(data.get('price', '0'))
+        
+        # Обрабатываем цену с запятыми/точками как разделителями тысяч
+        price_str = data.get('price', '0')
+        if ',' in price_str or '.' in price_str:
+            price_str = price_str.replace(',', '').replace('.', '')
+        price = int(price_str)
         
         return IPhonePriceData(
             generation=generation,
