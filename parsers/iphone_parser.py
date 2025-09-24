@@ -55,6 +55,30 @@ class IPhoneParser:
                 'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
                 'variant': 'from_match'
             },
+            # Формат с кириллицей: 16 Prо 128 White 88100🇯🇵
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Prо Max|Prо|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
+                'variant': 'from_match'
+            },
+            # Формат с кириллицей и 2Sim: 16 Prо 128 White 79300🇨🇳2Sim
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Prо Max|Prо|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)(2Sim|2SIM)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country', 'sim_code'],
+                'variant': 'from_match'
+            },
+            # Формат с кириллицей Maх: 16 Prо Maх 512 White 115600🇯🇵
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Prо Maх|Prо Max|Prо|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country'],
+                'variant': 'from_match'
+            },
+            # Формат с кириллицей Maх и 2Sim: 16 Prо Maх 1TB Black 136000🇯🇵
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Prо Maх|Prо Max|Prо|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)(2Sim|2SIM)?',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country', 'sim_code'],
+                'variant': 'from_match'
+            },
             # Формат: 16 Pro 128 Black 87300🇯🇵 (с пробелом, флаг в конце)
             {
                 'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)(?:[A-Za-z0-9]*)?',
@@ -132,6 +156,18 @@ class IPhoneParser:
                 'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB))\s+([A-Za-z\s]+?)\s+(2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s+(\d+)',
                 'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
                 'variant': ''
+            },
+            # Формат без пробела между флагом и 2Sim: 16 128 Black 58800 🇨🇳2Sim
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)\s+([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)(2Sim|2SIM)',
+                'groups': ['generation', 'storage', 'color', 'price', 'country', 'sim_code'],
+                'variant': ''
+            },
+            # Формат с кириллицей без пробела: 16 Prо 128 White 79300🇨🇳2Sim
+            {
+                'pattern': r'(\d{1,2}[A-Z]?)\s+(Plus|Prо Max|Prо|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(\d+)([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇦🇺]+)(2Sim|2SIM)',
+                'groups': ['generation', 'variant', 'storage', 'color', 'price', 'country', 'sim_code'],
+                'variant': 'from_match'
             },
             # Формат с эмодзи в конце: 16 Pro 128GB Black 2Sim 🇨🇳 81000 🚚
             {
@@ -330,6 +366,9 @@ class IPhoneParser:
         """Нормализует вариант iPhone"""
         if variant_type == 'from_match' and variant:
             variant = variant.strip()
+            # Нормализуем кириллические символы
+            variant = variant.replace('Prо', 'Pro').replace('Maх', 'Max')
+            
             if variant.lower() == 'pro max':
                 return 'Pro Max'
             elif variant.lower() == 'pro':
