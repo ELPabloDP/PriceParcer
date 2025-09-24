@@ -195,11 +195,15 @@ class TemplateParser:
                     )
                 
                 # Добавляем нераспознанные строки этого типа в общий список
-                results['unparsed_lines'].extend(unparsed_lines)
+                        for line in unparsed_lines:
+                    if line.strip() and line.strip() not in processed_lines:
+                        results['unparsed_lines'].append(line)
         
-        # Этап 2: Собираем все нераспознанные строки
+        # Этап 2: Собираем все оставшиеся нераспознанные строки
         remaining_lines = [line for line in lines if line.strip() and line.strip() not in processed_lines]
-        results['unparsed_lines'].extend(remaining_lines)
+        for line in remaining_lines:
+            if line not in results['unparsed_lines']:
+                results['unparsed_lines'].append(line)
         
         # Генерируем итоговый отчет
         summary = self._generate_detailed_summary(results)
