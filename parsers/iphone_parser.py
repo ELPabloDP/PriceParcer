@@ -204,6 +204,12 @@ class IPhoneParser:
                 'pattern': r'(\d{1,2}[A-Z]?)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s+(2\s*Sim|2Sim|2SIM)\s*([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]+)\s*-\s*(\d+[.,]\d+|\d+)[🚘🚚]?',
                 'groups': ['generation', 'storage', 'color', 'sim_code', 'country', 'price'],
                 'variant': ''
+            },
+            # Формат iPhone 17 Air: 🇯🇵17 Air 256 Space Black - 107000 🛩 Выдача в 15:00
+            {
+                'pattern': r'([🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳🇬🇧🇸🇬]+)(\d{1,2}[A-Z]?)\s+(Air|Plus|Pro Max|Pro)\s+(\d+(?:GB|TB)?)\s+([A-Za-z\s]+?)\s*-\s*(\d+)(?:\s*[🛩🚚🚘]?\s*[А-Яа-я\s]*)?',
+                'groups': ['country', 'generation', 'variant', 'storage', 'color', 'price'],
+                'variant': 'from_match'
             }
         ]
     
@@ -234,10 +240,18 @@ class IPhoneParser:
             'titanium': 'Titanium',
             'space gray': 'Space Gray',
             'space grey': 'Space Gray',
+            'space black': 'Space Black',
             'graphite': 'Graphite',
             'gold': 'Gold',
             'rose gold': 'Rose Gold',
-            'silver': 'Silver'
+            'silver': 'Silver',
+            
+            # iPhone 17 цвета
+            'cloud white': 'Cloud White',
+            'sky blue': 'Sky Blue',
+            'light gold': 'Light Gold',
+            'cosmic orange': 'Cosmic Orange',
+            'deep blue': 'Deep Blue'
         }
     
     def _get_country_mappings(self) -> Dict[str, str]:
@@ -288,7 +302,7 @@ class IPhoneParser:
         line_lower = line.lower()
         
         # Должен содержать признаки iPhone цены
-        has_generation = bool(re.search(r'(11|12|13|14|15|16|16e)', line_lower))
+        has_generation = bool(re.search(r'(11|12|13|14|15|16|16e|17)', line_lower))
         has_storage = bool(re.search(r'(128|256|512|1tb|\b\d+\s*(gb|tb))', line_lower))  # Добавили конкретные объемы
         has_price = bool(re.search(r'\d{4,6}|\d+[.,]\d+', line))  # Добавили поддержку цен с точкой/запятой
         has_flag = bool(re.search(r'[🇺🇸🇯🇵🇮🇳🇨🇳🇦🇪🇭🇰🇰🇷🇪🇺🇷🇺🇨🇦🇻🇳]', line))
@@ -375,6 +389,8 @@ class IPhoneParser:
                 return 'Pro'
             elif variant.lower() == 'plus':
                 return 'Plus'
+            elif variant.lower() == 'air':
+                return 'Air'
         return ''
     
     def _normalize_storage(self, storage: str) -> str:

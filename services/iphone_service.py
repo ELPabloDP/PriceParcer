@@ -39,6 +39,7 @@ class IPhoneService:
             ('15', 'iPhone 15'),
             ('16', 'iPhone 16'),
             ('16E', 'iPhone 16E'),
+            ('17', 'iPhone 17'),
         ]
         for number, display_name in generations:
             IPhoneGeneration.objects.get_or_create(
@@ -49,9 +50,10 @@ class IPhoneService:
         # Варианты
         variants = [
             ('', 'iPhone', 0),
-            ('Plus', 'iPhone Plus', 1),
-            ('Pro', 'iPhone Pro', 2), 
-            ('Pro Max', 'iPhone Pro Max', 3),
+            ('Air', 'iPhone Air', 1),
+            ('Plus', 'iPhone Plus', 2),
+            ('Pro', 'iPhone Pro', 3), 
+            ('Pro Max', 'iPhone Pro Max', 4),
         ]
         for name, display_name, sort_order in variants:
             IPhoneVariant.objects.get_or_create(
@@ -90,6 +92,13 @@ class IPhoneService:
             ('Ultramarine', 'Ультрамарин'),
             ('Teal', 'Бирюзовый'),
             ('Titanium', 'Титан'),
+            # iPhone 17 цвета
+            ('Space Black', 'Космический черный'),
+            ('Cloud White', 'Облачно-белый'),
+            ('Sky Blue', 'Небесно-синий'),
+            ('Light Gold', 'Светлое золото'),
+            ('Cosmic Orange', 'Космический оранжевый'),
+            ('Deep Blue', 'Глубокий синий'),
         ]
         for name, display_name in colors:
             IPhoneColor.objects.get_or_create(
@@ -164,7 +173,7 @@ class IPhoneService:
                 name=data.variant,
                 defaults={
                     'display_name': f'iPhone {data.variant}' if data.variant else 'iPhone',
-                    'sort_order': {'': 0, 'Plus': 1, 'Pro': 2, 'Pro Max': 3}.get(data.variant, 99)
+                    'sort_order': {'': 0, 'Air': 1, 'Plus': 2, 'Pro': 3, 'Pro Max': 4}.get(data.variant, 99)
                 }
             )
             
