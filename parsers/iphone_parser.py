@@ -314,6 +314,13 @@ class IPhoneParser:
         exclude_words = ['ipad', 'macbook', 'airpods', 'watch', 'adapter', 'гарантия', 'активаций', 'aw ', 'ultra 2', 'mini 7', 'pro 11']
         has_exclude = any(word in line_lower for word in exclude_words)
         
+        # Исключаем заголовки разделов (только эмодзи + iPhone + поколение + вариант)
+        is_header = bool(re.search(r'^📲\s*iPhone\s*\d+[A-Z]?\s*(Air|Pro|Pro Max)?\s*$', line.strip(), re.IGNORECASE))
+        
+        # Исключаем заголовки разделов
+        if is_header:
+            return False
+        
         # Для Apple iPhone строк нужны только generation, price и flag
         if has_apple_iphone:
             return has_generation and has_price and has_flag and not has_exclude

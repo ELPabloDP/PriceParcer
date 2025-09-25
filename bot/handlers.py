@@ -369,7 +369,9 @@ async def show_iphone_generations(callback, brand, iphone_list):
         generations = {}
         for phone in iphone_list:
             name = phone['name']
-            if 'iPhone 16E' in name or name.endswith('16Е'):
+            if 'iPhone 17' in name:
+                generation = '17'
+            elif 'iPhone 16E' in name or name.endswith('16Е'):
                 generation = '16E'
             elif 'iPhone 16Pro Max' in name:
                 generation = '16'
@@ -392,10 +394,11 @@ async def show_iphone_generations(callback, brand, iphone_list):
                 generations[generation] = []
             generations[generation].append(phone)
         
-        # Создаем клавиатуру с поколениями
+        # Создаем клавиатуру с поколениями (сортировка по убыванию)
         keyboard_buttons = []
-        for generation in sorted(generations.keys()):
-            if generation != 'Другие':
+        generation_order = ['17', '16E', '16', '15', '14', '13']
+        for generation in generation_order:
+            if generation in generations:
                 keyboard_buttons.append([InlineKeyboardButton(
                     text=f"📱 iPhone {generation}", 
                     callback_data=f"generation_{generation}"

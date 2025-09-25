@@ -133,6 +133,15 @@ class TemplateParser:
                 parsed_data, unparsed_lines = parser_info['parser'].parse_lines(device_lines)
                 
                 if parsed_data:
+                    # Отмечаем обработанные строки
+                    for data in parsed_data:
+                        if isinstance(data, dict):
+                            source_line = data.get('source_line', '')
+                        else:
+                            source_line = getattr(data, 'source_line', '')
+                        if source_line:
+                            processed_lines.add(source_line.strip())
+                    
                     # Сохраняем через специализированный сервис
                     if device_type == 'macbook':
                         # Для MacBook используем специальный метод
